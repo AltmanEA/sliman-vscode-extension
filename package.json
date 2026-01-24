@@ -24,14 +24,18 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --fix --config eslint.config.mjs",
-    "lint:check": "eslint src --config eslint.config.mjs"
+    "lint:check": "eslint src --config eslint.config.mjs",
+    "test": "vscode-test"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
-    "@types/vscode": "^1.85.0",
+    "@types/mocha": "^10.0.10",
     "@types/node": "18.18.0",
+    "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.0.0",
     "typescript": "^5.3.3"
   }
