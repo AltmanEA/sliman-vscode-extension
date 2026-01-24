@@ -1,0 +1,42 @@
+/**
+ * Constants for sli.dev Course VS Code Extension
+ */
+
+/** Extension identifier */
+export const EXTENSION_ID = 'sli.dev-course-dev';
+
+/** Output channel name for logs */
+export const OUTPUT_CHANNEL_NAME = 'sli.dev Course';
+
+/** Course configuration filename */
+export const SLIMAN_FILENAME = 'sliman.json';
+
+/** Slides configuration filename */
+export const SLIDES_FILENAME = 'slides.json';
+
+/** Lectures directory name */
+export const SLIDES_DIR = 'slides';
+
+/** Templates directory name */
+export const TEMPLATE_DIR = 'template';
+
+/** Built course output directory */
+export const BUILT_DIR = 'built';
+
+/** Template filenames */
+export const TEMPLATE_SLIDES = 'slides.md';
+export const TEMPLATE_INDEX = 'index.html';
+export const TEMPLATE_PACKAGE = 'package.json';
+export const TEMPLATE_STATIC = 'static.yml';
+
+/** Metadata keys for slides frontmatter */
+export const KEY_TITLE = 'title';
+export const KEY_NAME = 'name';
+
+/** Lecture frontmatter defaults */
+export const DEFAULT_CANVAS_WIDTH = 1280;
+export const DEFAULT_ROUTER_MODE = 'history';
+
+/** VS Code configuration keys */
+export const CONFIG_SECTION = 'sliDevCourse';
+export const CONFIG_COURSE_ROOT = 'courseRoot';

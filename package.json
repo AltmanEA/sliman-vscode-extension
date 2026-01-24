@@ -14,8 +14,9 @@
   "contributes": {
     "commands": [
       {
-        "command": "vscode-extension.helloWorld",
-        "title": "Hello World"
+        "command": "sliman.scanCourse",
+        "title": "Scan Course",
+        "category": "sli.dev Course"
       }
     ]
   },

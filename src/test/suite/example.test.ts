@@ -6,8 +6,8 @@ import * as vscode from 'vscode';
 // import * as myExtension from '../extension';
 
 suite('Extension Test Suite', () => {
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-  console.log('workspace folder', workspaceFolder);
+  // const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+  // console.log('workspace folder', workspaceFolder);
   suiteTeardown(() => {
     vscode.window.showInformationMessage('All tests done!');
   });

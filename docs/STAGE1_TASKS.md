@@ -52,31 +52,92 @@ Define all path and structure constants used throughout the extension.
 
 Manages course configuration files: `sliman.json` and `slides.json`.
 
+---
+
+### Task 1.3.1: Path Resolution
+
+**File:** `src/managers/CourseManager.ts` (section)
+
+Provide URI helpers for project structure.
+
 ### Requirements
 
-- Check if current workspace is a course root
-- read_file/write `sliman.json` with `course_name` field
-- read_file/write `slides.json` with lecture list
-- Add or update lectures in slides.json
-- Get lecture directories from slides/
-- Provide URIs for course root, slides dir, built course dir
+- Get course root URI
+- Get slides directory URI
+- Get built course directory URI (`<course_name>/`)
+- Check if path is within course root
+
+### Interface Methods
+
+- `getCourseRoot(): vscode.Uri`
+- `getSlidesDir(): vscode.Uri`
+- `getBuiltCourseDir(): vscode.Uri`
+
+---
+
+### Task 1.3.2: Sliman.json Operations
+
+**File:** `src/managers/CourseManager.ts` (section)
+
+Read and write `sliman.json` configuration.
+
+### Requirements
+
+- Check if workspace is a valid course root (sliman.json exists)
+- Read `course_name` from sliman.json
+- Write `course_name` to sliman.json
+- Handle JSON parse/write errors
 
 ### Interface Methods
 
 - `isCourseRoot(): Promise<boolean>`
 - `readSliman(): Promise<SlimanConfig | null>`
 - `writeSliman(config): Promise<void>`
+
+---
+
+### Task 1.3.3: Slides.json Operations
+
+**File:** `src/managers/CourseManager.ts` (section)
+
+Read and write `slides.json` lecture list.
+
+### Requirements
+
+- Read lecture list from built course directory
+- Write lecture list to built course directory
+- Add or update lecture entries
+- Handle JSON parse/write errors
+
+### Interface Methods
+
 - `readSlidesJson(): Promise<SlidesConfig | null>`
 - `writeSlidesJson(config): Promise<void>`
 - `addLecture(name, title): Promise<void>`
+
+---
+
+### Task 1.3.4: Lecture Discovery
+
+**File:** `src/managers/CourseManager.ts` (section)
+
+Enumerate lecture directories in `slides/`.
+
+### Requirements
+
+- Read directory listing of slides/
+- Filter for subdirectories only
+- Return array of lecture directory names
+
+### Interface Methods
+
 - `getLectureDirectories(): Promise<string[]>`
-- `getCourseRoot(): vscode.Uri`
-- `getSlidesDir(): vscode.Uri`
-- `getBuiltCourseDir(): vscode.Uri`
+
+---
 
 ### Deliverable
 
-- `src/managers/CourseManager.ts`
+- `src/managers/CourseManager.ts` (all sections)
 
 ---
 

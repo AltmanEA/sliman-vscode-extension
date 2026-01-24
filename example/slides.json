@@ -1,0 +1,24 @@
+{
+  "slides": [
+    {
+      "name": "about",
+      "title": "О предмете"
+    },
+    {
+      "name": "collection",
+      "title": "Коллекции"
+    },
+    {
+      "name": "serial",
+      "title": "Данные во внешней памяти"
+    },
+    {
+      "name": "mongo",
+      "title": "MongoDB"
+    },
+    {
+      "name": "prisma",
+      "title": "Prisma ORM"
+    }
+  ]
+}

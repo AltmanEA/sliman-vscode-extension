@@ -15,7 +15,21 @@ export default [
       sourceType: 'module',
       globals: {
         console: 'readonly',
-        vscode: 'readonly'
+        vscode: 'readonly',
+        // Node.js globals
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
+        exports: 'readonly',
+        process: 'readonly',
+        global: 'readonly',
+        // Mocha globals
+        suite: 'readonly',
+        test: 'readonly',
+        suiteSetup: 'readonly',
+        suiteTeardown: 'readonly',
+        setup: 'readonly'
       }
     },
     rules: {
