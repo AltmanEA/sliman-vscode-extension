@@ -10,8 +10,9 @@ import {
   SLIDES_FILENAME,
   SLIDES_DIR,
   BUILT_DIR,
+  TEMPLATE_SLIDES,
 } from '../constants';
-import type { SlimanConfig, SlidesConfig, LectureInfo } from '../types';
+import type { SlimanConfig, SlidesConfig, LectureInfo, CourseData } from '../types';
 
 /**
  * Course Manager handles course configuration files (sliman.json, slides.json)
@@ -65,6 +66,7 @@ export class CourseManager {
   isPathInCourseRoot(uri: vscode.Uri): boolean {
     const courseRootPath = this.workspaceUri.fsPath;
     const targetPath = uri.fsPath;
+    // Use path.sep for cross-platform path separator (Windows: '\', Unix: '/')
     return targetPath.startsWith(courseRootPath + path.sep) || targetPath === courseRootPath;
   }
 
@@ -96,8 +98,15 @@ export class CourseManager {
     try {
       const document = await vscode.workspace.openTextDocument(slimanUri);
       const content = document.getText();
-      const config = JSON.parse(content) as SlimanConfig;
-      return config;
+      const parsed = JSON.parse(content);
+
+      // Validate structure: must have course_name as non-empty string
+      if (typeof parsed?.course_name !== 'string' || parsed.course_name.trim() === '') {
+        console.error(`Invalid ${SLIMAN_FILENAME}: missing or invalid 'course_name' field`);
+        return null;
+      }
+
+      return parsed as SlimanConfig;
     } catch (error) {
       console.error(`Failed to read ${SLIMAN_FILENAME}:`, error);
       return null;
@@ -110,10 +119,10 @@ export class CourseManager {
    * @returns Promise that resolves when complete
    */
   async writeSliman(config: SlimanConfig): Promise<void> {
-    const slimanPath = path.join(this.workspaceUri.fsPath, SLIMAN_FILENAME);
+    const slimanUri = vscode.Uri.joinPath(this.workspaceUri, SLIMAN_FILENAME);
     try {
       const content = JSON.stringify(config, null, 2);
-      await fs.writeFile(slimanPath, content, 'utf-8');
+      await vscode.workspace.fs.writeFile(slimanUri, new TextEncoder().encode(content));
     } catch (error) {
       console.error(`Failed to write ${SLIMAN_FILENAME}:`, error);
       throw error;
@@ -132,10 +141,16 @@ export class CourseManager {
     const builtDir = this.getBuiltCourseDir();
     const slidesJsonUri = vscode.Uri.joinPath(builtDir, SLIDES_FILENAME);
     try {
-      const document = await vscode.workspace.openTextDocument(slidesJsonUri);
-      const content = document.getText();
-      const config = JSON.parse(content) as SlidesConfig;
-      return config;
+      const content = await vscode.workspace.fs.readFile(slidesJsonUri);
+      const parsed = JSON.parse(new TextDecoder().decode(content));
+
+      // Validate structure: must be object with slides as array
+      if (!parsed?.slides || !Array.isArray(parsed.slides)) {
+        console.error(`Invalid ${SLIDES_FILENAME}: missing or invalid 'slides' field`);
+        return null;
+      }
+
+      return parsed as SlidesConfig;
     } catch (error) {
       console.error(`Failed to read ${SLIDES_FILENAME}:`, error);
       return null;
@@ -151,10 +166,8 @@ export class CourseManager {
     const builtDir = this.getBuiltCourseDir();
     const slidesJsonUri = vscode.Uri.joinPath(builtDir, SLIDES_FILENAME);
     try {
-      // Ensure built directory exists
-      await fs.mkdir(builtDir.fsPath, { recursive: true });
       const content = JSON.stringify(config, null, 2);
-      await fs.writeFile(slidesJsonUri.fsPath, content, 'utf-8');
+      await vscode.workspace.fs.writeFile(slidesJsonUri, new TextEncoder().encode(content));
     } catch (error) {
       console.error(`Failed to write ${SLIDES_FILENAME}:`, error);
       throw error;
@@ -181,23 +194,48 @@ export class CourseManager {
     await this.writeSlidesJson({ slides: lectures });
   }
 
+  /**
+   * Reads both course configuration files at once
+   * Useful for displaying course overview information
+   * @returns Promise that resolves to CourseData with both config and slides
+   */
+  async readCourseData(): Promise<CourseData> {
+    const [config, slides] = await Promise.all([
+      this.readSliman(),
+      this.readSlidesJson(),
+    ]);
+    return { config, slides };
+  }
+
   // ============================================
   // Task 1.3.4: Lecture Discovery
   // ============================================
 
   /**
    * Gets the list of lecture directory names from the slides/ directory
+   * Only includes directories that contain a slides.md file
    * @returns Promise that resolves to array of lecture directory names
    */
   async getLectureDirectories(): Promise<string[]> {
     const slidesDir = this.getSlidesDir();
     try {
       const entries = await fs.readdir(slidesDir.fsPath, { withFileTypes: true });
-      const directories = entries
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name)
-        .filter((name) => !name.startsWith('.') && name !== BUILT_DIR);
-      return directories;
+      const lectureDirs: string[] = [];
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        if (entry.name.startsWith('.') || entry.name === BUILT_DIR) continue;
+
+        const lecturePath = vscode.Uri.joinPath(slidesDir, entry.name, TEMPLATE_SLIDES);
+        try {
+          await fs.access(lecturePath.fsPath);
+          lectureDirs.push(entry.name);
+        } catch {
+          // slides.md not found in this directory, skip
+        }
+      }
+
+      return lectureDirs.sort();
     } catch (error) {
       console.error('Failed to read slides directory:', error);
       return [];

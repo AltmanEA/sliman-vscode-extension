@@ -22,11 +22,12 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
+    "compile": "tsc -p ./",    
+    "watch": "tsc -watch -p ./",    
     "lint": "eslint src --fix --config eslint.config.mjs",
     "lint:check": "eslint src --config eslint.config.mjs",
-    "test": "vscode-test"
+    "test": "pnpm run compile && pnpm run vscode-test",
+    "vscode-test": "vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

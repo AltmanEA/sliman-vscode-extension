@@ -16,6 +16,8 @@ export default [
       globals: {
         console: 'readonly',
         vscode: 'readonly',
+        TextEncoder: 'readonly',
+        TextDecoder: 'readonly',
         // Node.js globals
         __dirname: 'readonly',
         __filename: 'readonly',
