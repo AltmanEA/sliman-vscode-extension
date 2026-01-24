@@ -96,8 +96,9 @@ export class CourseManager {
   async readSliman(): Promise<SlimanConfig | null> {
     const slimanUri = vscode.Uri.joinPath(this.workspaceUri, SLIMAN_FILENAME);
     try {
-      const document = await vscode.workspace.openTextDocument(slimanUri);
-      const content = document.getText();
+      const content = new TextDecoder().decode(
+        await vscode.workspace.fs.readFile(slimanUri)
+      );
       const parsed = JSON.parse(content);
 
       // Validate structure: must have course_name as non-empty string

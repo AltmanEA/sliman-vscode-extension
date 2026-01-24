@@ -1,29 +1,51 @@
 ﻿'use strict';
 
 import * as vscode from 'vscode';
-import { CourseManager } from './managers/CourseManager';
+import { managersContainer } from './managers/ManagersContainer';
 import { EXTENSION_ID, OUTPUT_CHANNEL_NAME } from './constants';
 
 // Create output channel
 const outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
 
+/**
+ * Initializes managers container with the current workspace
+ * @param context - Extension context
+ * @returns True if initialization was successful
+ */
+function initializeManagers(_context: vscode.ExtensionContext): boolean {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    void vscode.window.showErrorMessage('No workspace folder is open');
+    return false;
+  }
+
+  managersContainer.initialize(workspaceFolders[0].uri);
+  return true;
+}
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   console.log(`Extension "${EXTENSION_ID}" is now active`);
   context.subscriptions.push(outputChannel);
+
+  // Initialize managers with current workspace
+  const initialized = initializeManagers(context);
+  if (!initialized) {
+    return;
+  }
 
   // Register sliman.scanCourse command
   const scanCourseCommand = vscode.commands.registerCommand(
     'sliman.scanCourse',
     async () => {
-      // Create CourseManager for this command invocation
-      const workspaceFolders = vscode.workspace.workspaceFolders;
-      if (!workspaceFolders || workspaceFolders.length === 0) {
-        void vscode.window.showErrorMessage('No workspace folder is open');
+      outputChannel.show();
+
+      // Get CourseManager from container
+      const courseManager = managersContainer.courseManager;
+      if (!courseManager) {
+        outputChannel.appendLine('CourseManager not initialized');
+        void vscode.window.showErrorMessage('CourseManager not initialized');
         return;
       }
-
-      const courseManager = new CourseManager(workspaceFolders[0].uri);
-      outputChannel.show();
 
       const isRoot = await courseManager.isCourseRoot();
       outputChannel.appendLine(`Is course root: ${isRoot}`);
@@ -48,5 +70,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 }
 
 export function deactivate(): void {
-  console.log('Extension "vscode-extension" is now deactivated');
+  console.log(`Extension "${EXTENSION_ID}" is now deactivated`);
+  outputChannel.dispose();
 }

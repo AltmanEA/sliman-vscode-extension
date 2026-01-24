@@ -1,9 +1,9 @@
 {
-  "name": "vscode-extension",
-  "displayName": "Vscode Extension",
-  "description": "VSCode extension",
+  "name": "sli.dev-course-manager",
+  "displayName": "sli.dev Course manager",
+  "description": "Managing a course from presentations on sli.dev",
   "version": "0.0.1",
-  "publisher": "developer",
+  "publisher": "ea",
   "engines": {
     "vscode": "^1.85.0"
   },

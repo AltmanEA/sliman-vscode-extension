@@ -35,8 +35,8 @@ async function cleanupTestDir(tempDir: string): Promise<void> {
   const fs = await import('fs/promises');
   try {
     await fs.rm(tempDir, { recursive: true, force: true });
-  } catch {
-    // Ignore cleanup errors
+  } catch (error) {
+    console.warn(`Failed to cleanup test directory: ${tempDir}`, error);
   }
 }
 
