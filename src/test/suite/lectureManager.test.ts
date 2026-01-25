@@ -6,6 +6,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs/promises';
 import { LectureManager } from '../../managers/LectureManager';
 import { CourseManager } from '../../managers/CourseManager';
 import { SLIDES_DIR, LECTURE_SLIDES, LECTURE_PACKAGE, TEMPLATE_DIR, TEMPLATE_SLIDES, TEMPLATE_PACKAGE } from '../../constants';
@@ -632,5 +633,31 @@ suite('LectureManager Test Suite', () => {
         await cleanupTestDir(tempDir);
       }
     });
+  });
+
+  // ============================================
+  // Global Cleanup
+  // ============================================
+
+  suiteTeardown(async () => {
+    // Clean up any remaining test directories
+    const testDir = path.join(__dirname, '..', '..', '..');
+    
+    try {
+      const entries = await fs.readdir(testDir);
+      const testWorkspaces = entries.filter(entry => 
+        entry.startsWith('test-workspace-') && !entry.includes('example')
+      );
+      
+      for (const dir of testWorkspaces) {
+        try {
+          await fs.rm(path.join(testDir, dir), { recursive: true, force: true });
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+      }
+    } catch (e) {
+      // Ignore errors
+    }
   });
 });

@@ -100,10 +100,6 @@ export class WindowsCommandExecutor implements ICommandExecutor {
     const cwd = options?.cwd ?? process.cwd();
     
     return new Promise((resolve) => {
-      let stdout = '';
-      let stderr = '';
-      let completed = false;
-
       const execOptions: ExecOptions = {
         cwd,
         env: { ...process.env, ...options?.env },
@@ -112,8 +108,6 @@ export class WindowsCommandExecutor implements ICommandExecutor {
       };
 
       exec(command, execOptions, (error: Error | null, stdoutData: string | Buffer, stderrData: string | Buffer) => {
-        completed = true;
-        
         if (error) {
           // Command failed, but we may still have output
           const errorCode = (error as NodeJS.ErrnoException).code;
@@ -133,44 +127,6 @@ export class WindowsCommandExecutor implements ICommandExecutor {
           stderr: stderrData?.toString() ?? '',
           exitCode: 0,
         });
-      });
-
-      // Handle case where child process fails to spawn
-      const childProcess = exec(command, execOptions);
-      childProcess.on('error', (error: Error) => {
-        if (completed) return;
-        completed = true;
-        
-        const errorCode = (error as NodeJS.ErrnoException).code;
-        const exitCode = typeof errorCode === 'number' ? errorCode : 1;
-        resolve({
-          success: false,
-          stdout: '',
-          stderr: error.message,
-          exitCode,
-        });
-      });
-
-      // Collect output - mark variables as used
-       
-      void stdout;
-       
-      void stderr;
-      
-      childProcess.stdout?.on('data', (data: Buffer) => {
-        const text = data.toString();
-        stdout += text;
-        if (options?.outputChannel) {
-          options.outputChannel.append(text);
-        }
-      });
-
-      childProcess.stderr?.on('data', (data: Buffer) => {
-        const text = data.toString();
-        stderr += text;
-        if (options?.outputChannel) {
-          options.outputChannel.append(text);
-        }
       });
     });
   }

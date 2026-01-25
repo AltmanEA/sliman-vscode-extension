@@ -27,7 +27,12 @@
     "lint": "eslint src --fix --config eslint.config.mjs",
     "lint:check": "eslint src --config eslint.config.mjs",
     "test": "pnpm run compile && pnpm run vscode-test",
-    "vscode-test": "vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test"
+    "vscode-test": "vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test",
+    "test:course": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^CourseManager\"",
+    "test:example": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Extension\"",
+    "test:lecture": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Lecture\"",
+    "test:process": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Process\"",
+    "test:translit": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^translit\""
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

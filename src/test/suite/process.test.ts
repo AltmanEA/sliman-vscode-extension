@@ -260,7 +260,8 @@ suite('Process Helper Test Suite', () => {
           dispose: () => {},
         } as vscode.OutputChannel;
 
-        const result = await ProcessHelper.exec('echo Hello World', {
+        // Use execStream for streaming output to channel
+        const result = await ProcessHelper.execStream('echo Hello World', {
           outputChannel: mockChannel,
         });
         
@@ -416,5 +417,31 @@ suite('Process Helper Test Suite', () => {
       assert.strictEqual(results[1].success, true);
       assert.strictEqual(results[2].success, true);
     });
+  });
+
+  // ============================================
+  // Global Cleanup
+  // ============================================
+
+  suiteTeardown(async () => {
+    // Clean up any remaining test directories
+    const testDir = path.join(__dirname, '..', '..', '..');
+    
+    try {
+      const entries = await fs.readdir(testDir);
+      const testWorkspaces = entries.filter(entry => 
+        entry.startsWith('test-workspace-process-')
+      );
+      
+      for (const dir of testWorkspaces) {
+        try {
+          await fs.rm(path.join(testDir, dir), { recursive: true, force: true });
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+      }
+    } catch (e) {
+      // Ignore errors
+    }
   });
 });
