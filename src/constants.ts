@@ -47,3 +47,6 @@ export const LECTURE_PACKAGE = 'package.json';
 
 /** Lecture directory prefix */
 export const LECTURE_PREFIX = 'lecture-';
+
+/** Slidev configuration section name */
+export const LECTURE_CONFIG_SECTION = 'slidev';

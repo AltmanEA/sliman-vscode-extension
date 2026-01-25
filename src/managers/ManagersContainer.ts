@@ -9,15 +9,16 @@
 
 import type * as vscode from 'vscode';
 import { CourseManager } from './CourseManager';
-// LectureManager and BuildManager will be added in Stage 2
+import { LectureManager } from './LectureManager';
+// BuildManager will be added in Stage 2 subtask 2.4
 
 /**
  * Container for storing and providing access to extension managers
  */
 export class ManagersContainer {
   private _courseManager: CourseManager | null = null;
-  // Stage 2: Add placeholders for new managers
-  // private _lectureManager: LectureManager | null = null;
+  private _lectureManager: LectureManager | null = null;
+  // Stage 2.4: Add BuildManager placeholder
   // private _buildManager: BuildManager | null = null;
 
   /**
@@ -26,8 +27,8 @@ export class ManagersContainer {
    */
   initialize(workspaceUri: vscode.Uri): void {
     this._courseManager = new CourseManager(workspaceUri);
-    // Stage 2: Initialize new managers here
-    // this._lectureManager = new LectureManager(workspaceUri, this._courseManager);
+    this._lectureManager = new LectureManager(this._courseManager);
+    // Stage 2.4: Initialize BuildManager here
     // this._buildManager = new BuildManager(workspaceUri, this._courseManager, this._lectureManager);
   }
 
@@ -40,11 +41,19 @@ export class ManagersContainer {
   }
 
   /**
+   * Gets the LectureManager instance
+   * @returns LectureManager or null if not initialized
+   */
+  get lectureManager(): LectureManager | null {
+    return this._lectureManager;
+  }
+
+  /**
    * Checks if managers are initialized
    * @returns True if managers are ready
    */
   isInitialized(): boolean {
-    return this._courseManager !== null;
+    return this._courseManager !== null && this._lectureManager !== null;
   }
 
   /**
@@ -52,8 +61,8 @@ export class ManagersContainer {
    */
   reset(): void {
     this._courseManager = null;
-    // Stage 2: Reset new managers
-    // this._lectureManager = null;
+    this._lectureManager = null;
+    // Stage 2.4: Reset BuildManager
     // this._buildManager = null;
   }
 }
