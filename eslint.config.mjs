@@ -26,6 +26,12 @@ export default [
         exports: 'readonly',
         process: 'readonly',
         global: 'readonly',
+        Buffer: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        NodeJS: 'readonly',
         // Mocha globals
         suite: 'readonly',
         test: 'readonly',

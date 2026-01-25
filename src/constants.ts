@@ -40,3 +40,10 @@ export const DEFAULT_ROUTER_MODE = 'history';
 /** VS Code configuration keys */
 export const CONFIG_SECTION = 'sliDevCourse';
 export const CONFIG_COURSE_ROOT = 'courseRoot';
+
+/** Lecture file names */
+export const LECTURE_SLIDES = 'slides.md';
+export const LECTURE_PACKAGE = 'package.json';
+
+/** Lecture directory prefix */
+export const LECTURE_PREFIX = 'lecture-';
