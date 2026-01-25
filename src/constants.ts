@@ -17,7 +17,7 @@ export const SLIDES_FILENAME = 'slides.json';
 /** Lectures directory name */
 export const SLIDES_DIR = 'slides';
 
-/** Templates directory name */
+/** Templates directory name (relative to course root) */
 export const TEMPLATE_DIR = 'template';
 
 /** Built course output directory */

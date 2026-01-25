@@ -1,5 +1,5 @@
 /**
- * Tests for LectureManager - Subtask 2.2: Structure
+ * Tests for LectureManager - Subtask 2.2: Structure & Subtask 2.3: Templates
  * Each test creates its own unique temporary directory to avoid state pollution.
  */
 
@@ -8,7 +8,11 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { LectureManager } from '../../managers/LectureManager';
 import { CourseManager } from '../../managers/CourseManager';
-import { SLIDES_DIR, LECTURE_SLIDES, LECTURE_PACKAGE } from '../../constants';
+import { SLIDES_DIR, LECTURE_SLIDES, LECTURE_PACKAGE, TEMPLATE_DIR, TEMPLATE_SLIDES, TEMPLATE_PACKAGE } from '../../constants';
+import { ProcessHelper } from '../../utils/process';
+
+// Mock ProcessHelper to skip npm install in tests
+ProcessHelper.installDependencies = async () => ({ success: true, stdout: '', stderr: '', exitCode: 0 });
 
 // ============================================
 // Helper Functions
@@ -313,6 +317,317 @@ suite('LectureManager Test Suite', () => {
         const fs = await import('fs/promises');
         const stat = await fs.stat(path.join(tempDir, SLIDES_DIR, 'тест-лекция'));
         assert.strictEqual(stat.isDirectory(), true);
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+  });
+
+  // ============================================
+  // Subtask 2.3: Template Tests
+  // ============================================
+
+  suite('copySlidesTemplate', () => {
+    test('should copy slides.md with replaced title', async () => {
+      const { manager, tempDir } = await createManagerForTest('copySlidesTemplate');
+      try {
+        // Create template directory with slides.md
+        const fs = await import('fs/promises');
+        const templateDir = path.join(tempDir, TEMPLATE_DIR);
+        await fs.mkdir(templateDir, { recursive: true });
+        await fs.writeFile(
+          path.join(templateDir, TEMPLATE_SLIDES),
+          '---\ntitle: {{TITLE}}\nname: {{NAME}}\n---\n# Hello\n',
+          'utf-8'
+        );
+
+        await manager.createLectureDir('lecture-1');
+        await manager.copySlidesTemplate('lecture-1', 'My Lecture Title');
+
+        const content = await fs.readFile(
+          path.join(tempDir, SLIDES_DIR, 'lecture-1', LECTURE_SLIDES),
+          'utf-8'
+        );
+        assert.ok(content.includes('title: My Lecture Title'));
+        assert.ok(content.includes('name: lecture-1'));
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should throw when template file does not exist', async () => {
+      const { manager, tempDir } = await createManagerForTest('copySlidesTemplate');
+      try {
+        await manager.createLectureDir('lecture-1');
+
+        await assert.rejects(
+          async () => await manager.copySlidesTemplate('lecture-1', 'Title'),
+          /Failed to read template/
+        );
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should handle Cyrillic title', async () => {
+      const { manager, tempDir } = await createManagerForTest('copySlidesTemplate');
+      try {
+        const fs = await import('fs/promises');
+        const templateDir = path.join(tempDir, TEMPLATE_DIR);
+        await fs.mkdir(templateDir, { recursive: true });
+        await fs.writeFile(
+          path.join(templateDir, TEMPLATE_SLIDES),
+          '---\ntitle: {{TITLE}}\n---\n',
+          'utf-8'
+        );
+
+        await manager.createLectureDir('lecture-1');
+        await manager.copySlidesTemplate('lecture-1', 'Введение в курс');
+
+        const content = await fs.readFile(
+          path.join(tempDir, SLIDES_DIR, 'lecture-1', LECTURE_SLIDES),
+          'utf-8'
+        );
+        assert.ok(content.includes('title: Введение в курс'));
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+  });
+
+  suite('copyPackageJson', () => {
+    test('should copy package.json with replaced lecture name', async () => {
+      const { manager, tempDir } = await createManagerForTest('copyPackageJson');
+      try {
+        const fs = await import('fs/promises');
+        const templateDir = path.join(tempDir, TEMPLATE_DIR);
+        await fs.mkdir(templateDir, { recursive: true });
+        await fs.writeFile(
+          path.join(templateDir, TEMPLATE_PACKAGE),
+          '{"name": "{{LECTURE_NAME}}", "scripts": {"dev": "slidev"}}',
+          'utf-8'
+        );
+
+        await manager.createLectureDir('lecture-1');
+        await manager.copyPackageJson('lecture-1');
+
+        const content = await fs.readFile(
+          path.join(tempDir, SLIDES_DIR, 'lecture-1', LECTURE_PACKAGE),
+          'utf-8'
+        );
+        assert.ok(content.includes('"name": "lecture-1"'));
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should throw when template file does not exist', async () => {
+      const { manager, tempDir } = await createManagerForTest('copyPackageJson');
+      try {
+        await manager.createLectureDir('lecture-1');
+
+        await assert.rejects(
+          async () => await manager.copyPackageJson('lecture-1'),
+          /Failed to read template/
+        );
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+  });
+
+  suite('updateCourseConfig', () => {
+    test('should add lecture to slides.json', async () => {
+      const { manager, tempDir } = await createManagerForTest('updateCourseConfig');
+      try {
+        const fs = await import('fs/promises');
+        // Create built directory and slides.json
+        const builtDir = path.join(tempDir, 'built');
+        await fs.mkdir(builtDir, { recursive: true });
+        await fs.writeFile(
+          path.join(builtDir, 'slides.json'),
+          '{"slides": []}',
+          'utf-8'
+        );
+
+        await manager.updateCourseConfig('lecture-1', 'First Lecture');
+
+        const content = await fs.readFile(
+          path.join(builtDir, 'slides.json'),
+          'utf-8'
+        );
+        const parsed = JSON.parse(content);
+        assert.strictEqual(parsed.slides.length, 1);
+        assert.strictEqual(parsed.slides[0].name, 'lecture-1');
+        assert.strictEqual(parsed.slides[0].title, 'First Lecture');
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should update existing lecture in slides.json', async () => {
+      const { manager, tempDir } = await createManagerForTest('updateCourseConfig');
+      try {
+        const fs = await import('fs/promises');
+        const builtDir = path.join(tempDir, 'built');
+        await fs.mkdir(builtDir, { recursive: true });
+        await fs.writeFile(
+          path.join(builtDir, 'slides.json'),
+          '{"slides": [{"name": "lecture-1", "title": "Old Title"}]}',
+          'utf-8'
+        );
+
+        await manager.updateCourseConfig('lecture-1', 'New Title');
+
+        const content = await fs.readFile(
+          path.join(builtDir, 'slides.json'),
+          'utf-8'
+        );
+        const parsed = JSON.parse(content);
+        assert.strictEqual(parsed.slides.length, 1);
+        assert.strictEqual(parsed.slides[0].title, 'New Title');
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should create slides.json if it does not exist', async () => {
+      const { manager, tempDir } = await createManagerForTest('updateCourseConfig');
+      try {
+        // Don't create slides.json - it should be created
+        await manager.updateCourseConfig('lecture-1', 'First Lecture');
+
+        const fs = await import('fs/promises');
+        const content = await fs.readFile(
+          path.join(tempDir, 'built', 'slides.json'),
+          'utf-8'
+        );
+        const parsed = JSON.parse(content);
+        assert.strictEqual(parsed.slides.length, 1);
+        assert.strictEqual(parsed.slides[0].name, 'lecture-1');
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+  });
+
+  suite('createLecture', () => {
+    test('should create complete lecture structure', async () => {
+      const { manager, tempDir } = await createManagerForTest('createLecture');
+      try {
+        const fs = await import('fs/promises');
+        // Create template directory
+        const templateDir = path.join(tempDir, TEMPLATE_DIR);
+        await fs.mkdir(templateDir, { recursive: true });
+        await fs.writeFile(
+          path.join(templateDir, TEMPLATE_SLIDES),
+          '---\ntitle: {{TITLE}}\nname: {{NAME}}\n---\n# {{TITLE}}\n',
+          'utf-8'
+        );
+        await fs.writeFile(
+          path.join(templateDir, TEMPLATE_PACKAGE),
+          '{"name": "{{LECTURE_NAME}}", "private": true}',
+          'utf-8'
+        );
+        // Create built/slides.json
+        await fs.mkdir(path.join(tempDir, 'built'), { recursive: true });
+        await fs.writeFile(path.join(tempDir, 'built', 'slides.json'), '{"slides": []}', 'utf-8');
+
+        const folderName = await manager.createLecture('my-lecture', 'My Lecture');
+
+        assert.strictEqual(folderName, 'my-lecture');
+
+        // Check slides.md exists with correct content
+        const slidesContent = await fs.readFile(
+          path.join(tempDir, SLIDES_DIR, 'my-lecture', LECTURE_SLIDES),
+          'utf-8'
+        );
+        assert.ok(slidesContent.includes('title: My Lecture'));
+        assert.ok(slidesContent.includes('name: my-lecture'));
+
+        // Check package.json exists with correct content
+        const packageContent = await fs.readFile(
+          path.join(tempDir, SLIDES_DIR, 'my-lecture', LECTURE_PACKAGE),
+          'utf-8'
+        );
+        assert.ok(packageContent.includes('"name": "my-lecture"'));
+
+        // Check slides.json was updated
+        const slidesJson = JSON.parse(
+          await fs.readFile(path.join(tempDir, 'built', 'slides.json'), 'utf-8')
+        );
+        assert.strictEqual(slidesJson.slides.length, 1);
+        assert.strictEqual(slidesJson.slides[0].name, 'my-lecture');
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should generate folder name from Cyrillic title', async () => {
+      const { manager, tempDir } = await createManagerForTest('createLecture');
+      try {
+        const fs = await import('fs/promises');
+        const templateDir = path.join(tempDir, TEMPLATE_DIR);
+        await fs.mkdir(templateDir, { recursive: true });
+        await fs.writeFile(path.join(templateDir, TEMPLATE_SLIDES), '---\ntitle: {{TITLE}}\n---\n', 'utf-8');
+        await fs.writeFile(path.join(templateDir, TEMPLATE_PACKAGE), '{"name": "{{LECTURE_NAME}}"}', 'utf-8');
+        await fs.mkdir(path.join(tempDir, 'built'), { recursive: true });
+        await fs.writeFile(path.join(tempDir, 'built', 'slides.json'), '{"slides": []}', 'utf-8');
+
+        const folderName = await manager.createLecture('О компании');
+
+        assert.strictEqual(folderName, 'o-kompanii');
+
+        // Check slides.json has correct title
+        const slidesJson = JSON.parse(
+          await fs.readFile(path.join(tempDir, 'built', 'slides.json'), 'utf-8')
+        );
+        assert.strictEqual(slidesJson.slides[0].title, 'О компании');
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should throw when lecture already exists', async () => {
+      const { manager, tempDir } = await createManagerForTest('createLecture');
+      try {
+        const fs = await import('fs/promises');
+        const templateDir = path.join(tempDir, TEMPLATE_DIR);
+        await fs.mkdir(templateDir, { recursive: true });
+        await fs.writeFile(path.join(templateDir, TEMPLATE_SLIDES), '---\ntitle: {{TITLE}}\n---\n', 'utf-8');
+        await fs.writeFile(path.join(templateDir, TEMPLATE_PACKAGE), '{"name": "{{LECTURE_NAME}}"}', 'utf-8');
+        await fs.mkdir(path.join(tempDir, 'built'), { recursive: true });
+        await fs.writeFile(path.join(tempDir, 'built', 'slides.json'), '{"slides": []}', 'utf-8');
+
+        // Create first lecture
+        await manager.createLecture('existing-lecture', 'Existing Lecture');
+
+        // Try to create duplicate
+        await assert.rejects(
+          async () => await manager.createLecture('existing-lecture', 'Another Lecture'),
+          /already exists/
+        );
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should handle title-only argument (no name)', async () => {
+      const { manager, tempDir } = await createManagerForTest('createLecture');
+      try {
+        const fs = await import('fs/promises');
+        const templateDir = path.join(tempDir, TEMPLATE_DIR);
+        await fs.mkdir(templateDir, { recursive: true });
+        await fs.writeFile(path.join(templateDir, TEMPLATE_SLIDES), '---\ntitle: {{TITLE}}\n---\n', 'utf-8');
+        await fs.writeFile(path.join(templateDir, TEMPLATE_PACKAGE), '{"name": "{{LECTURE_NAME}}"}', 'utf-8');
+        await fs.mkdir(path.join(tempDir, 'built'), { recursive: true });
+        await fs.writeFile(path.join(tempDir, 'built', 'slides.json'), '{"slides": []}', 'utf-8');
+
+        const folderName = await manager.createLecture('Introduction to Programming');
+
+        // Should generate folder name from title
+        assert.ok(folderName.length > 0);
+        assert.strictEqual(folderName, 'introduction-to-programming');
       } finally {
         await cleanupTestDir(tempDir);
       }

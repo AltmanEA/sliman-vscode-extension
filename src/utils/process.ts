@@ -160,13 +160,17 @@ export class WindowsCommandExecutor implements ICommandExecutor {
       childProcess.stdout?.on('data', (data: Buffer) => {
         const text = data.toString();
         stdout += text;
-        options?.outputChannel?.append(text);
+        if (options?.outputChannel) {
+          options.outputChannel.append(text);
+        }
       });
 
       childProcess.stderr?.on('data', (data: Buffer) => {
         const text = data.toString();
         stderr += text;
-        options?.outputChannel?.append(text);
+        if (options?.outputChannel) {
+          options.outputChannel.append(text);
+        }
       });
     });
   }
