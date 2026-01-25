@@ -32,6 +32,7 @@
     "test:example": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Extension\"",
     "test:lecture": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Lecture\"",
     "test:process": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Process\"",
+    "test:build": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^BuildManager\"",
     "test:translit": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^translit\""
   },
   "devDependencies": {

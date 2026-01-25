@@ -10,7 +10,7 @@
 import type * as vscode from 'vscode';
 import { CourseManager } from './CourseManager';
 import { LectureManager } from './LectureManager';
-// BuildManager will be added in Stage 2 subtask 2.4
+import { BuildManager } from './BuildManager';
 
 /**
  * Container for storing and providing access to extension managers
@@ -18,8 +18,7 @@ import { LectureManager } from './LectureManager';
 export class ManagersContainer {
   private _courseManager: CourseManager | null = null;
   private _lectureManager: LectureManager | null = null;
-  // Stage 2.4: Add BuildManager placeholder
-  // private _buildManager: BuildManager | null = null;
+  private _buildManager: BuildManager | null = null;
 
   /**
    * Initializes all managers with the given workspace URI
@@ -28,8 +27,7 @@ export class ManagersContainer {
   initialize(workspaceUri: vscode.Uri): void {
     this._courseManager = new CourseManager(workspaceUri);
     this._lectureManager = new LectureManager(this._courseManager);
-    // Stage 2.4: Initialize BuildManager here
-    // this._buildManager = new BuildManager(workspaceUri, this._courseManager, this._lectureManager);
+    this._buildManager = new BuildManager(this._courseManager, this._lectureManager);
   }
 
   /**
@@ -49,11 +47,21 @@ export class ManagersContainer {
   }
 
   /**
+   * Gets the BuildManager instance
+   * @returns BuildManager or null if not initialized
+   */
+  get buildManager(): BuildManager | null {
+    return this._buildManager;
+  }
+
+  /**
    * Checks if managers are initialized
    * @returns True if managers are ready
    */
   isInitialized(): boolean {
-    return this._courseManager !== null && this._lectureManager !== null;
+    return this._courseManager !== null && 
+           this._lectureManager !== null && 
+           this._buildManager !== null;
   }
 
   /**
@@ -62,8 +70,7 @@ export class ManagersContainer {
   reset(): void {
     this._courseManager = null;
     this._lectureManager = null;
-    // Stage 2.4: Reset BuildManager
-    // this._buildManager = null;
+    this._buildManager = null;
   }
 }
 
