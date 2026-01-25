@@ -132,12 +132,25 @@ export class WindowsCommandExecutor implements ICommandExecutor {
   }
 
   /**
+   * Gets current timestamp for log formatting
+   * @returns Formatted timestamp string [HH:mm:ss]
+   */
+  private getTimestamp(): string {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    return `[${hours}:${minutes}:${seconds}]`;
+  }
+
+  /**
    * Executes a command with streaming output using spawn
    */
   async execStream(command: string, options?: ProcessOptions, handler?: StreamHandler): Promise<ProcessResult> {
     const timeout = options?.timeout ?? 300000;
     const cwd = options?.cwd ?? process.cwd();
-    
+    const outputChannel = options?.outputChannel;
+
     return new Promise((resolve) => {
       let stdout = '';
       let stderr = '';
@@ -166,12 +179,25 @@ export class WindowsCommandExecutor implements ICommandExecutor {
         }
       }, timeout);
 
+      // Helper to write to output channel with timestamp
+      const writeToOutput = (text: string) => {
+        if (outputChannel) {
+          const timestamp = this.getTimestamp();
+          const lines = text.split('\n');
+          for (const line of lines) {
+            if (line.trim()) {
+              outputChannel.appendLine(`${timestamp} ${line}`);
+            }
+          }
+        }
+      };
+
       // Handle stdout stream
       child.stdout?.on('data', (data: Buffer) => {
         const text = data.toString();
         stdout += text;
         handler?.('stdout', text);
-        options?.outputChannel?.append(text);
+        writeToOutput(text);
       });
 
       // Handle stderr stream
@@ -179,7 +205,7 @@ export class WindowsCommandExecutor implements ICommandExecutor {
         const text = data.toString();
         stderr += text;
         handler?.('stderr', text);
-        options?.outputChannel?.append(text);
+        writeToOutput(text);
       });
 
       // Handle process completion
