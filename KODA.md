@@ -8,11 +8,20 @@
 
 ### Текущий статус разработки
 
-Проект находится на **Stage 1** — этапе разработки базовой инфраструктуры. Реализованы:
+Проект находится на **Stage 2** — этапе разработки модулей лекций и сборки. Реализованы:
+
+**Stage 1 (Завершён):**
 - Базовые типы данных (SlimanConfig, LectureInfo, SlidesConfig, CourseData)
 - Константы путей и структуры проекта
 - CourseManager для управления файлами конфигурации курса
-- Базовый extension.ts с командой sliman.scanCourse
+- extension.ts с командой sliman.scanCourse
+
+**Stage 2 (Завершён):**
+- ProcessHelper — утилита для выполнения shell-команд с поддержкой npm/pnpm
+- LectureManager — создание лекций, копирование шаблонов, транслитерация кириллицы
+- BuildManager — сборка лекций и курса, real-time output, progress bar
+- ManagersContainer — обновлён для включения всех менеджеров
+- Тесты: LectureManager (40+), ProcessHelper (25+), BuildManager (10+)
 
 ---
 
@@ -38,11 +47,19 @@ src/                          # Исходный код расширения
 │   └── index.ts              # TypeScript интерфейсы и типы
 ├── managers/
 │   ├── ManagersContainer.ts  # Singleton-контейнер для менеджеров
-│   └── CourseManager.ts      # Управление конфигурацией курса
+│   ├── CourseManager.ts      # Управление конфигурацией курса
+│   ├── LectureManager.ts     # Создание и управление лекциями
+│   └── BuildManager.ts       # Сборка лекций и курса
+├── utils/
+│   ├── process.ts            # Утилита для выполнения shell-команд
+│   └── translit.ts           # Транслитерация кириллицы в латиницу
 └── test/
     └── suite/
         ├── courseManager.test.ts  # Тесты CourseManager
-        └── example.test.ts        # Примеры тестов
+        ├── lectureManager.test.ts  # Тесты LectureManager (40+)
+        ├── buildManager.test.ts    # Тесты BuildManager (10+)
+        ├── process.test.ts        # Тесты ProcessHelper (25+)
+        └── example.test.ts         # Примеры тестов
 
 template/                     # Шаблоны для создания курсов
 ├── slides.md                 # Шаблон лекции
@@ -150,34 +167,110 @@ pnpm run test
 
 Паттерн Singleton для хранения и предоставления доступа к менеджерам:
 - Инициализация один раз при активации расширения
-- Предоставляет доступ к CourseManager через свойство courseManager
+- Предоставляет доступ к CourseManager, LectureManager, BuildManager
 - Методы: initialize(), isInitialized(), reset()
+
+Свойства:
+- `courseManager: CourseManager | null` — менеджер курса
+- `lectureManager: LectureManager | null` — менеджер лекций
+- `buildManager: BuildManager | null` — менеджер сборки
 
 #### 3. CourseManager — Управление курсом
 
 Основной класс для работы со структурой курса:
 
 Методы path resolution:
-- getCourseRoot() — возвращает URI корня курса
-- getSlidesDir() — возвращает URI директории slides/
-- getBuiltCourseDir() — возвращает URI директории built/
-- isPathInCourseRoot(uri) — проверяет, находится ли URI в корне курса
+- `getCourseRoot()` — возвращает URI корня курса
+- `getSlidesDir()` — возвращает URI директории slides/
+- `getBuiltCourseDir()` — возвращает URI директории built/
+- `isPathInCourseRoot(uri)` — проверяет, находится ли URI в корне курса
 
 Методы для sliman.json:
-- isCourseRoot() — проверяет наличие файла sliman.json
-- readSliman() — читает конфигурацию курса
-- writeSliman(config) — записывает конфигурацию курса
+- `isCourseRoot()` — проверяет наличие файла sliman.json
+- `readSliman()` — читает конфигурацию курса
+- `writeSliman(config)` — записывает конфигурацию курса
 
 Методы для slides.json:
-- readSlidesJson() — читает конфигурацию лекций
-- writeSlidesJson(config) — записывает конфигурацию лекций
-- addLecture(name, title) — добавляет или обновляет лекцию
+- `readSlidesJson()` — читает конфигурацию лекций
+- `writeSlidesJson(config)` — записывает конфигурацию лекций
+- `addLecture(name, title)` — добавляет или обновляет лекцию
 
 Методы для discovery:
-- getLectureDirectories() — возвращает список директорий лекций
-- readCourseData() — читает все данные курса одной операцией
+- `getLectureDirectories()` — возвращает список директорий лекций
+- `readCourseData()` — читает все данные курса одной операцией
 
-#### 4. Constants — Константы
+#### 4. ProcessHelper — Утилита для выполнения команд
+
+Утилита для выполнения shell-команд с поддержкой npm/pnpm и streaming output.
+
+Интерфейсы:
+- `ICommandExecutor` — интерфейс исполнителя команд
+- `ProcessResult` — результат выполнения команды (success, stdout, stderr, exitCode)
+- `ProcessOptions` — опции выполнения (cwd, env, timeout, outputChannel)
+
+Статические методы:
+- `exec(command, options?)` — выполнение команды с буферизованным выводом
+- `execStream(command, options?, handler?)` — выполнение со streaming выводом
+- `execPackageManager(script, cwd, args?, options?)` — выполнение npm/pnpm скриптов
+- `installDependencies(cwd, options?)` — установка зависимостей (npm/pnpm)
+- `runBuild(cwd, options?)` — сборка презентации (npm run build)
+
+Управление исполнителем:
+- `setExecutor(executor)` — установка кастомного исполнителя
+- `resetExecutor()` — сброс к исполнителю по умолчанию
+- `detectPlatform()` — определение платформы (windows/unix)
+
+#### 5. LectureManager — Управление лекциями
+
+Класс для создания и управления структурой лекций.
+
+Методы path resolution:
+- `getSlidesDir()` — возвращает URI директории slides/
+- `getLectureDir(name)` — возвращает URI директории лекции
+- `getLectureSlidesPath(name)` — возвращает URI файла slides.md
+- `getLecturePackagePath(name)` — возвращает URI файла package.json
+
+Методы структуры:
+- `lectureExists(name)` — проверяет существование лекции
+- `createLectureDir(name)` — создаёт директорию лекции
+
+Методы шаблонов:
+- `copySlidesTemplate(name, title)` — копирует и обновляет slides.md
+- `copyPackageJson(name)` — копирует и обновляет package.json
+- `initLectureNpm(name)` — устанавливает зависимости лекции
+
+Методы конфигурации:
+- `updateCourseConfig(name, title)` — обновляет slides.json
+
+Основной метод:
+- `createLecture(nameOrTitle, title?)` — создаёт полную структуру лекции
+
+#### 6. BuildManager — Сборка лекций и курса
+
+Класс для сборки лекций и курса с real-time output.
+
+Интерфейсы:
+- `BuildProgress` — информация о прогрессе (lecture, stage, percent)
+- `BuildError` — структурированная информация об ошибке
+
+Свойства:
+- `outputChannel` — канал вывода для логов сборки
+
+Методы output integration:
+- `attachOutput(channel)` — подключение внешнего канала вывода
+- `clearOutput()` — очистка канала вывода
+- `appendLine(message)` — добавление строки с timestamp
+- `appendBlock(block)` — добавление многострочного блока
+- `showOutput(preserveFocus?)` — показ канала вывода
+- `showProgress(progress)` — отображение прогресса в status bar
+- `hideProgress()` — скрытие status bar
+
+Методы сборки:
+- `buildLecture(name)` — сборка одной лекции (install + build)
+- `buildCourse()` — сборка всего курса (все лекции)
+- `runDevServer(name)` — запуск dev сервера лекции в терминале
+
+#### 7. Constants — Константы
 
 Структурные константы проекта:
 
@@ -202,7 +295,34 @@ KEY_NAME = 'name'
 DEFAULT_CANVAS_WIDTH = 1280
 DEFAULT_ROUTER_MODE = 'history'
 
-#### 5. Types — Типы данных
+// Файлы лекций
+LECTURE_SLIDES = 'slides.md'
+LECTURE_PACKAGE = 'package.json'
+
+// Префикс лекций
+LECTURE_PREFIX = 'lecture-'
+
+// Конфигурация VS Code
+CONFIG_SECTION = 'sliDevCourse'
+CONFIG_COURSE_ROOT = 'courseRoot'
+LECTURE_CONFIG_SECTION = 'slidev'
+
+#### 8. Transliterator — Транслитерация кириллицы
+
+Утилита для преобразования кириллицы в латиницу в именах папок лекций.
+
+Функции:
+- `transliterate(input: string): string` — преобразует строку в Latin
+- `generateLectureFolderName(title: string): string` — генерирует имя папки из заголовка
+- `isValidFolderName(name: string): boolean` — проверяет валидность имени папки
+
+Особенности:
+- Поддержка русских и украинских букв (а-я, А-Я)
+- Автоматическая замена пробелов и спецсимволов на дефисы
+- Ограничение длины: 64 символа
+- fallback: `lecture-{timestamp}` при пустом результате
+
+#### 9. Types — Типы данных
 
 interface SlimanConfig {
   course_name: string;
@@ -242,6 +362,47 @@ interface CourseRootItem {
   uri: string;
 }
 
+// ProcessHelper типы
+interface ProcessResult {
+  success: boolean;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+interface ProcessOptions {
+  cwd?: string;
+  env?: Record<string, string>;
+  timeout?: number;
+  outputChannel?: vscode.OutputChannel;
+  packageManager?: 'npm' | 'pnpm';
+}
+
+interface StreamHandler {
+  (type: 'stdout' | 'stderr', data: string): void;
+}
+
+interface ICommandExecutor {
+  detectPlatform(): 'windows' | 'unix';
+  exec(command: string, options?: ProcessOptions): Promise<ProcessResult>;
+  execStream(command: string, options?: ProcessOptions, handler?: StreamHandler): Promise<ProcessResult>;
+  execPackageManager(script: string, cwd: string, args?: string[], options?: ProcessOptions): Promise<ProcessResult>;
+}
+
+// BuildManager типы
+interface BuildProgress {
+  lecture: string;
+  stage: 'install' | 'build' | 'copy';
+  percent: number;
+}
+
+interface BuildError {
+  lecture: string;
+  stage: string;
+  message: string;
+  exitCode: number;
+}
+
 ---
 
 ## Команды расширения
@@ -268,21 +429,33 @@ interface CourseRootItem {
 
 ## План развития (Stage 2+)
 
-### Stage 2 — Лекции и сборка (планируется)
+### Stage 2 — Лекции и сборка (Завершён)
 
-- src/managers/LectureManager.ts — создание и управление лекциями
-- src/managers/BuildManager.ts — сборка курса (npm run dev/build)
-- src/utils/process.ts — утилита для выполнения shell-команд
+- src/managers/LectureManager.ts — создание и управление лекциями ✓
+- src/managers/BuildManager.ts — сборка курса (npm run dev/build) ✓
+- src/utils/process.ts — утилита для выполнения shell-команд ✓
+- src/utils/translit.ts — транслитерация кириллицы ✓
+- Тесты: LectureManager (40+), ProcessHelper (25+), BuildManager (10+) ✓
 
-### Stage 3 — UI команды (планируется)
+### Stage 3 — UI команды (В разработке)
 
-Реализация 8 команд для полноценной работы с курсом.
+Реализация 8 команд для полноценной работы с курсом:
 
-### Stage 4 — Tree View (планируется)
+| ID команды | Название | Статус | Описание |
+|------------|----------|--------|----------|
+| sliman.createCourse | Create Course | ⏳ | Создаёт новую структуру курса |
+| sliman.addLecture | Add Lecture | ⏳ | Добавляет новую лекцию |
+| sliman.runLecture | Run Lecture | ⏳ | Запускает лекцию в режиме разработки |
+| sliman.buildLecture | Build Lecture | ⏳ | Собирает лекцию в статические файлы |
+| sliman.openSlides | Open slides.md | ⏳ | Открывает файл slides.md текущей лекции |
+| sliman.buildCourse | Build Course | ⏳ | Собирает весь курс |
+| sliman.setupPages | Setup GitHub Pages | ⏳ | Настраивает GitHub Pages для курса |
+
+### Stage 4 — Tree View (Планируется)
 
 Реализация Course Explorer — древовидного представления структуры курса в панели VS Code.
 
-### Stage 5 — Контекстные меню (планируется)
+### Stage 5 — Контекстные меню (Планируется)
 
 Интеграция с проводником файлов для быстрого доступа к командам.
 

@@ -1,0 +1,1 @@
+---\ntitle: Test Lecture\ncanvasWidth: 1280\nrouterMode: history\n---\n\n# Test Lecture\n\nThis is a test lecture for integration tests.

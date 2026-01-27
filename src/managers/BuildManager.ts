@@ -97,6 +97,21 @@ export class BuildManager {
   }
 
   /**
+   * Disposes all resources held by BuildManager
+   * Should be called when BuildManager is no longer needed
+   */
+  dispose(): void {
+    if (this._outputChannel) {
+      this._outputChannel.dispose();
+      this._outputChannel = null;
+    }
+    if (this._statusBarItem) {
+      this._statusBarItem.dispose();
+      this._statusBarItem = null;
+    }
+  }
+
+  /**
    * Gets current timestamp for log formatting
    * @returns Formatted timestamp string [HH:mm:ss]
    */

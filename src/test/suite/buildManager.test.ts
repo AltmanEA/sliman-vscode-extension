@@ -45,7 +45,8 @@ import * as fsSync from 'fs';
 import { BuildManager } from '../../managers/BuildManager';
 import { CourseManager } from '../../managers/CourseManager';
 import { LectureManager } from '../../managers/LectureManager';
-import { ProcessHelper, ICommandExecutor, ProcessResult, ProcessOptions, StreamHandler } from '../../utils/process';
+import type { ICommandExecutor, ProcessResult, ProcessOptions, StreamHandler } from '../../utils/process';
+import { ProcessHelper } from '../../utils/process';
 import { SLIDES_DIR, BUILT_DIR, SLIMAN_FILENAME, SLIDES_FILENAME } from '../../constants';
 
 // ============================================
@@ -193,6 +194,8 @@ function createTestLectureSync(tempDir: string, lectureName: string): void {
 suite('BuildManager Test Suite', () => {
   // Mock executor instance
   let mockExecutor: MockExecutor;
+  // Track build managers for cleanup
+  const buildManagers: BuildManager[] = [];
 
   setup(() => {
     // Create and set mock executor
@@ -201,10 +204,26 @@ suite('BuildManager Test Suite', () => {
   });
     
   teardown(() => {
+    // Dispose all BuildManager instances created during tests
+    for (const manager of buildManagers) {
+      try {
+        manager.dispose();
+      } catch {
+        // Ignore disposal errors
+      }
+    }
+    buildManagers.length = 0;
     // Reset executor after each test
     ProcessHelper.resetExecutor();
   });
-    
+
+  // Helper to track build managers for cleanup
+  function createBuildManager(courseManager: CourseManager, lectureManager: LectureManager): BuildManager {
+    const manager = new BuildManager(courseManager, lectureManager);
+    buildManagers.push(manager);
+    return manager;
+  }
+
   // ============================================
   // runDevServer Tests
   // ============================================
@@ -214,7 +233,7 @@ suite('BuildManager Test Suite', () => {
       const tempDir = await createTestDir('runDevServer-not-found');
       try {
         const { courseManager, lectureManager } = await createTestCourse(tempDir);
-        const buildManager = new BuildManager(courseManager, lectureManager);
+        const buildManager = createBuildManager(courseManager, lectureManager);
 
         await assert.rejects(
           async () => buildManager.runDevServer('nonexistent-lecture'),
@@ -230,7 +249,7 @@ suite('BuildManager Test Suite', () => {
       try {
         const { courseManager, lectureManager } = await createTestCourse(tempDir);
         createTestLectureSync(tempDir, 'test-lecture');
-        const buildManager = new BuildManager(courseManager, lectureManager);
+        const buildManager = createBuildManager(courseManager, lectureManager);
 
         // Should not throw - terminal is created successfully
         await buildManager.runDevServer('test-lecture');
@@ -249,7 +268,7 @@ suite('BuildManager Test Suite', () => {
       const tempDir = await createTestDir('output-channel');
       try {
         const { courseManager, lectureManager } = await createTestCourse(tempDir);
-        const buildManager = new BuildManager(courseManager, lectureManager);
+        const buildManager = createBuildManager(courseManager, lectureManager);
 
         assert.ok(buildManager.outputChannel !== undefined, 'outputChannel should be defined');
         assert.strictEqual(buildManager.outputChannel?.name, 'sli.dev Course Build', 'outputChannel should have correct name');
@@ -263,7 +282,7 @@ suite('BuildManager Test Suite', () => {
       try {
         const { courseManager, lectureManager } = await createTestCourse(tempDir);
         createTestLectureSync(tempDir, 'test-lecture');
-        const buildManager = new BuildManager(courseManager, lectureManager);
+        const buildManager = createBuildManager(courseManager, lectureManager);
 
         // Build should complete successfully
         await buildManager.buildLecture('test-lecture');
@@ -279,7 +298,7 @@ suite('BuildManager Test Suite', () => {
       const tempDir = await createTestDir('output-attach');
       try {
         const { courseManager, lectureManager } = await createTestCourse(tempDir);
-        const buildManager = new BuildManager(courseManager, lectureManager);
+        const buildManager = createBuildManager(courseManager, lectureManager);
 
         const externalChannel = vscode.window.createOutputChannel('External Channel');
         try {

@@ -2,8 +2,8 @@
  * Constants for sli.dev Course VS Code Extension
  */
 
-/** Extension identifier */
-export const EXTENSION_ID = 'sli.dev-course-dev';
+/** Extension identifier: publisher.name from package.json */
+export const EXTENSION_ID = 'ea.sli.dev-course-manager';
 
 /** Output channel name for logs */
 export const OUTPUT_CHANNEL_NAME = 'sli.dev Course';

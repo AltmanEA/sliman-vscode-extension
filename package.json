@@ -33,7 +33,8 @@
     "test:lecture": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Lecture\"",
     "test:process": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Process\"",
     "test:build": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^BuildManager\"",
-    "test:translit": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^translit\""
+    "test:translit": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^translit\"",
+    "test:extension": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Extension\""
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
