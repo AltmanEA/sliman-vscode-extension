@@ -438,7 +438,64 @@ suite('Commands Module', () => {
     });
 
     test('runLecture should not throw', async () => {
-      await runLecture(); // Should not throw
+      // Create temporary directory with course structure
+      const tempDir = await createTestDir('commands', 'runLecture');
+      await fs.mkdir(path.join(tempDir, 'slides'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'sliman.json'), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');
+      await fs.writeFile(path.join(tempDir, 'slides.json'), JSON.stringify({ slides: [] }), 'utf-8');
+      await fs.mkdir(path.join(tempDir, 'slides', 'test-lecture'), { recursive: true });
+
+      // Initialize with mock channel
+      const mockChannel = {
+        name: 'Test',
+        appendLine: () => {},
+        append: () => {},
+        clear: () => {},
+        show: () => {},
+        hide: () => {},
+        dispose: () => {},
+        isVisible: false
+      } as unknown as vscode.OutputChannel;
+      initializeCommands(mockChannel, path.join(__dirname, '..', '..', '..'));
+
+      // Mock managers
+      const { managersContainer } = await import('../../managers/ManagersContainer');
+      const mockCourseManager = {
+        isCourseRoot: async () => true,
+        getCourseRoot: () => vscode.Uri.file(tempDir),
+        getLectureDirectories: async () => ['test-lecture']
+      };
+      const mockLectureManager = {
+        lectureExists: async () => true
+      };
+      const mockBuildManager = {
+        runDevServer: async () => {}
+      };
+
+      // Store originals
+      const originalCourseManager = (managersContainer as unknown as { _courseManager: unknown })._courseManager;
+      const originalLectureManager = (managersContainer as unknown as { _lectureManager: unknown })._lectureManager;
+      const originalBuildManager = (managersContainer as unknown as { _buildManager: unknown })._buildManager;
+
+      // Set mocks
+      (managersContainer as unknown as { _courseManager: unknown })._courseManager = mockCourseManager;
+      (managersContainer as unknown as { _lectureManager: unknown })._lectureManager = mockLectureManager;
+      (managersContainer as unknown as { _buildManager: unknown })._buildManager = mockBuildManager;
+
+      // Mock UI functions
+      const originalOpenExternal = vscode.env.openExternal;
+      vscode.env.openExternal = async () => true;
+
+      try {
+        await runLecture('test-lecture'); // Should not throw
+      } finally {
+        // Restore
+        vscode.env.openExternal = originalOpenExternal;
+        (managersContainer as unknown as { _courseManager: unknown })._courseManager = originalCourseManager;
+        (managersContainer as unknown as { _lectureManager: unknown })._lectureManager = originalLectureManager;
+        (managersContainer as unknown as { _buildManager: unknown })._buildManager = originalBuildManager;
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
     });
 
     test('buildLecture should not throw', async () => {
