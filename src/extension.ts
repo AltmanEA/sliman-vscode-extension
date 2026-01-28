@@ -3,70 +3,50 @@
 import * as vscode from 'vscode';
 import { managersContainer } from './managers/ManagersContainer';
 import { EXTENSION_ID, OUTPUT_CHANNEL_NAME } from './constants';
+import {
+  createCourse,
+  scanCourse,
+  addLecture,
+  runLecture,
+  buildLecture,
+  openSlides,
+  buildCourse,
+  setupPages,
+  initializeCommands
+} from './commands';
 
 // Create output channel
 const outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
-
-/**
- * Initializes managers container with the current workspace
- * @param context - Extension context
- * @returns True if initialization was successful
- */
-function initializeManagers(_context: vscode.ExtensionContext): boolean {
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (!workspaceFolders || workspaceFolders.length === 0) {
-    void vscode.window.showErrorMessage('No workspace folder is open');
-    return false;
-  }
-
-  managersContainer.initialize(workspaceFolders[0].uri);
-  return true;
-}
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   console.log(`Extension "${EXTENSION_ID}" is now active`);
   context.subscriptions.push(outputChannel);
 
   // Initialize managers with current workspace
-  const initialized = initializeManagers(context);
-  if (!initialized) {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    void vscode.window.showErrorMessage('No workspace folder is open');
     return;
   }
 
-  // Register sliman.scanCourse command
-  const scanCourseCommand = vscode.commands.registerCommand(
-    'sliman.scanCourse',
-    async () => {
-      outputChannel.show();
+  managersContainer.initialize(workspaceFolders[0].uri);
 
-      // Get CourseManager from container
-      const courseManager = managersContainer.courseManager;
-      if (!courseManager) {
-        outputChannel.appendLine('CourseManager not initialized');
-        void vscode.window.showErrorMessage('CourseManager not initialized');
-        return;
-      }
+  // Initialize commands module with output channel
+  initializeCommands(outputChannel);
 
-      const isRoot = await courseManager.isCourseRoot();
-      outputChannel.appendLine(`Is course root: ${isRoot}`);
+  // Register all commands
+  const commands = [
+    vscode.commands.registerCommand('sliman.createCourse', createCourse),
+    vscode.commands.registerCommand('sliman.scanCourse', scanCourse),
+    vscode.commands.registerCommand('sliman.addLecture', addLecture),
+    vscode.commands.registerCommand('sliman.runLecture', runLecture),
+    vscode.commands.registerCommand('sliman.buildLecture', buildLecture),
+    vscode.commands.registerCommand('sliman.openSlides', openSlides),
+    vscode.commands.registerCommand('sliman.buildCourse', buildCourse),
+    vscode.commands.registerCommand('sliman.setupPages', setupPages)
+  ];
 
-      if (isRoot) {
-        const slimanConfig = await courseManager.readSliman();
-        outputChannel.appendLine(`Course name: ${slimanConfig?.course_name ?? 'N/A'}`);
-
-        const lectures = await courseManager.getLectureDirectories();
-        outputChannel.appendLine(`Lectures found: ${lectures.length}`);
-        lectures.forEach((name) => outputChannel.appendLine(`  - ${name}`));
-      } else {
-        outputChannel.appendLine('Workspace is not a valid course root (sliman.json not found)');
-        void vscode.window.showWarningMessage('Not a valid course root');
-      }
-
-      void vscode.window.showInformationMessage('Course scan complete');
-    }
-  );
-
-  context.subscriptions.push(scanCourseCommand);
+  context.subscriptions.push(...commands);
 }
 
 export function deactivate(): void {

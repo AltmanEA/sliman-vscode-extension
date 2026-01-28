@@ -37,7 +37,10 @@ export default [
         test: 'readonly',
         suiteSetup: 'readonly',
         suiteTeardown: 'readonly',
-        setup: 'readonly'
+        setup: 'readonly',
+        teardown: 'readonly',
+        afterEach: 'readonly',
+        beforeEach: 'readonly'
       }
     },
     rules: {

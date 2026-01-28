@@ -14,8 +14,43 @@
   "contributes": {
     "commands": [
       {
+        "command": "sliman.createCourse",
+        "title": "Create Course",
+        "category": "sli.dev Course"
+      },
+      {
         "command": "sliman.scanCourse",
         "title": "Scan Course",
+        "category": "sli.dev Course"
+      },
+      {
+        "command": "sliman.addLecture",
+        "title": "Add Lecture",
+        "category": "sli.dev Course"
+      },
+      {
+        "command": "sliman.runLecture",
+        "title": "Run Lecture",
+        "category": "sli.dev Course"
+      },
+      {
+        "command": "sliman.buildLecture",
+        "title": "Build Lecture",
+        "category": "sli.dev Course"
+      },
+      {
+        "command": "sliman.openSlides",
+        "title": "Open slides.md",
+        "category": "sli.dev Course"
+      },
+      {
+        "command": "sliman.buildCourse",
+        "title": "Build Course",
+        "category": "sli.dev Course"
+      },
+      {
+        "command": "sliman.setupPages",
+        "title": "Setup GitHub Pages",
         "category": "sli.dev Course"
       }
     ]
