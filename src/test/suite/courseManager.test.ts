@@ -6,39 +6,20 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs/promises';
 import { CourseManager } from '../../managers/CourseManager';
 import { SLIDES_DIR, BUILT_DIR, SLIMAN_FILENAME, SLIDES_FILENAME, TEMPLATE_SLIDES } from '../../constants';
+import { createTestDir, cleanupTestDir } from '../utils/testWorkspace';
 
 // ============================================
 // Helper Functions
 // ============================================
 
-/** Creates a unique temporary directory for a test */
-async function createTestDir(testName: string): Promise<string> {
-  const fs = await import('fs/promises');
-  const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-  const testDir = path.join(__dirname, '..', '..', '..', `test-workspace-${testName}-${uniqueId}`);
-  await fs.mkdir(testDir, { recursive: true });
-  return testDir;
-}
-
 /** Creates a CourseManager with its own unique test directory */
 async function createManagerForTest(testName: string): Promise<{ manager: CourseManager; tempDir: string }> {
-  const tempDir = await createTestDir(testName);
+  const tempDir = await createTestDir('manager', testName);
   const uri = vscode.Uri.file(tempDir);
   const manager = new CourseManager(uri);
   return { manager, tempDir };
-}
-
-/** Cleans up a test directory */
-async function cleanupTestDir(tempDir: string): Promise<void> {
-  const fs = await import('fs/promises');
-  try {
-    await fs.rm(tempDir, { recursive: true, force: true });
-  } catch (error) {
-    console.warn(`Failed to cleanup test directory: ${tempDir}`, error);
-  }
 }
 
 // ============================================
@@ -738,29 +719,4 @@ suite('CourseManager Test Suite', () => {
     });
   });
 
-  // ============================================
-  // Global Cleanup
-  // ============================================
-
-  suiteTeardown(async () => {
-    // Clean up any remaining test directories
-    const testDir = path.join(__dirname, '..', '..', '..');
-    
-    try {
-      const entries = await fs.readdir(testDir);
-      const testWorkspaces = entries.filter(entry => 
-        entry.startsWith('test-workspace-') && !entry.includes('example')
-      );
-      
-      for (const dir of testWorkspaces) {
-        try {
-          await fs.rm(path.join(testDir, dir), { recursive: true, force: true });
-        } catch (e) {
-          // Ignore errors during cleanup
-        }
-      }
-    } catch (e) {
-      // Ignore errors
-    }
   });
-});

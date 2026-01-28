@@ -13,27 +13,7 @@ import {
   ProcessErrorCode,
   getProcessErrorCode,
 } from '../../utils/process';
-
-// ============================================
-// Helper Functions
-// ============================================
-
-/** Creates a unique temporary directory for a test */
-async function createTestDir(testName: string): Promise<string> {
-  const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-  const testDir = path.join(__dirname, '..', '..', '..', `test-workspace-process-${testName}-${uniqueId}`);
-  await fs.mkdir(testDir, { recursive: true });
-  return testDir;
-}
-
-/** Cleans up a test directory */
-async function cleanupTestDir(tempDir: string): Promise<void> {
-  try {
-    await fs.rm(tempDir, { recursive: true, force: true });
-  } catch (error) {
-    console.warn(`Failed to cleanup test directory: ${tempDir}`, error);
-  }
-}
+import { createTestDir, cleanupTestDir } from '../utils/testWorkspace';
 
 // ============================================
 // Process Helper Test Suite
@@ -79,7 +59,7 @@ suite('Process Helper Test Suite', () => {
       });
 
       test('should execute a command with working directory', async () => {
-        const tempDir = await createTestDir('cwd-test');
+        const tempDir = await createTestDir('process', 'cwd-test');
         try {
           const result = await ProcessHelper.exec('cd', { cwd: tempDir });
           
@@ -158,7 +138,7 @@ suite('Process Helper Test Suite', () => {
   suite('Package Manager Execution', () => {
     suite('execPackageManager', () => {
       test('should execute npm script with no arguments', async () => {
-        const tempDir = await createTestDir('npm-test');
+        const tempDir = await createTestDir('process', 'npm-test');
         try {
           // Create a package.json with a test script
           const packageJson = {
@@ -180,7 +160,7 @@ suite('Process Helper Test Suite', () => {
       });
 
       test('should execute npm script with arguments', async () => {
-        const tempDir = await createTestDir('npm-args-test');
+        const tempDir = await createTestDir('process', 'npm-args-test');
         try {
           // Create a package.json with a script that accepts arguments
           const packageJson = {
@@ -202,7 +182,7 @@ suite('Process Helper Test Suite', () => {
       });
 
       test('should use pnpm when specified', async () => {
-        const tempDir = await createTestDir('pnpm-test');
+        const tempDir = await createTestDir('process', 'pnpm-test');
         try {
           // Create a pnpm-workspace.yaml to indicate pnpm usage
           await fs.writeFile(path.join(tempDir, 'pnpm-workspace.yaml'), 'packages:\n  - .');
@@ -220,7 +200,7 @@ suite('Process Helper Test Suite', () => {
       });
 
       test('should handle npm install', async () => {
-        const tempDir = await createTestDir('npm-install');
+        const tempDir = await createTestDir('process', 'npm-install');
         try {
           // Create a package.json
           const packageJson = {
@@ -246,7 +226,7 @@ suite('Process Helper Test Suite', () => {
 
   suite('Output Channel Integration', () => {
     test('should stream output to VS Code output channel', async () => {
-      const tempDir = await createTestDir('output-channel');
+      const tempDir = await createTestDir('process', 'output-channel');
       try {
         // Create a mock output channel
         let channelOutput = '';
@@ -419,29 +399,4 @@ suite('Process Helper Test Suite', () => {
     });
   });
 
-  // ============================================
-  // Global Cleanup
-  // ============================================
-
-  suiteTeardown(async () => {
-    // Clean up any remaining test directories
-    const testDir = path.join(__dirname, '..', '..', '..');
-    
-    try {
-      const entries = await fs.readdir(testDir);
-      const testWorkspaces = entries.filter(entry => 
-        entry.startsWith('test-workspace-process-')
-      );
-      
-      for (const dir of testWorkspaces) {
-        try {
-          await fs.rm(path.join(testDir, dir), { recursive: true, force: true });
-        } catch (e) {
-          // Ignore errors during cleanup
-        }
-      }
-    } catch (e) {
-      // Ignore errors
-    }
   });
-});

@@ -6,11 +6,11 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
-import * as fs from 'fs/promises';
 import { LectureManager } from '../../managers/LectureManager';
 import { CourseManager } from '../../managers/CourseManager';
 import { SLIDES_DIR, LECTURE_SLIDES, LECTURE_PACKAGE, TEMPLATE_DIR, TEMPLATE_SLIDES, TEMPLATE_PACKAGE } from '../../constants';
 import { ProcessHelper } from '../../utils/process';
+import { createTestDir, cleanupTestDir } from '../utils/testWorkspace';
 
 // Mock ProcessHelper to skip npm install in tests
 ProcessHelper.installDependencies = async () => ({ success: true, stdout: '', stderr: '', exitCode: 0 });
@@ -19,32 +19,13 @@ ProcessHelper.installDependencies = async () => ({ success: true, stdout: '', st
 // Helper Functions
 // ============================================
 
-/** Creates a unique temporary directory for a test */
-async function createTestDir(testName: string): Promise<string> {
-  const fs = await import('fs/promises');
-  const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-  const testDir = path.join(__dirname, '..', '..', '..', `test-workspace-${testName}-${uniqueId}`);
-  await fs.mkdir(testDir, { recursive: true });
-  return testDir;
-}
-
 /** Creates a LectureManager with its own unique test directory */
 async function createManagerForTest(testName: string): Promise<{ manager: LectureManager; tempDir: string }> {
-  const tempDir = await createTestDir(testName);
+  const tempDir = await createTestDir('manager', testName);
   const uri = vscode.Uri.file(tempDir);
   const courseManager = new CourseManager(uri);
   const manager = new LectureManager(courseManager);
   return { manager, tempDir };
-}
-
-/** Cleans up a test directory */
-async function cleanupTestDir(tempDir: string): Promise<void> {
-  const fs = await import('fs/promises');
-  try {
-    await fs.rm(tempDir, { recursive: true, force: true });
-  } catch (error) {
-    console.warn(`Failed to cleanup test directory: ${tempDir}`, error);
-  }
 }
 
 // ============================================
@@ -631,29 +612,4 @@ suite('LectureManager Test Suite', () => {
     });
   });
 
-  // ============================================
-  // Global Cleanup
-  // ============================================
-
-  suiteTeardown(async () => {
-    // Clean up any remaining test directories
-    const testDir = path.join(__dirname, '..', '..', '..');
-    
-    try {
-      const entries = await fs.readdir(testDir);
-      const testWorkspaces = entries.filter(entry => 
-        entry.startsWith('test-workspace-') && !entry.includes('example')
-      );
-      
-      for (const dir of testWorkspaces) {
-        try {
-          await fs.rm(path.join(testDir, dir), { recursive: true, force: true });
-        } catch (e) {
-          // Ignore errors during cleanup
-        }
-      }
-    } catch (e) {
-      // Ignore errors
-    }
   });
-});

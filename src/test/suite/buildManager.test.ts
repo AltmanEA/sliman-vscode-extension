@@ -48,6 +48,7 @@ import { LectureManager } from '../../managers/LectureManager';
 import type { ICommandExecutor, ProcessResult, ProcessOptions, StreamHandler } from '../../utils/process';
 import { ProcessHelper } from '../../utils/process';
 import { SLIDES_DIR, BUILT_DIR, SLIMAN_FILENAME, SLIDES_FILENAME } from '../../constants';
+import { createTestDir, cleanupTestDir } from '../utils/testWorkspace';
 
 // ============================================
 // Mock Executor for Testing
@@ -135,23 +136,6 @@ class MockExecutor implements ICommandExecutor {
 // Helper Functions
 // ============================================
 
-/** Creates a unique temporary directory for a test */
-async function createTestDir(testName: string): Promise<string> {
-  const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-  const testDir = path.join(__dirname, '..', '..', '..', `test-workspace-build-${testName}-${uniqueId}`);
-  await fs.mkdir(testDir, { recursive: true });
-  return testDir;
-}
-
-/** Cleans up a test directory */
-async function cleanupTestDir(tempDir: string): Promise<void> {
-  try {
-    await fs.rm(tempDir, { recursive: true, force: true });
-  } catch (error) {
-    console.warn(`Failed to cleanup test directory: ${tempDir}`, error);
-  }
-}
-
 /** Creates a complete course structure for testing */
 async function createTestCourse(tempDir: string): Promise<{
   courseManager: CourseManager;
@@ -230,7 +214,7 @@ suite('BuildManager Test Suite', () => {
 
   suite('runDevServer', () => {
     test('should throw error when lecture does not exist', async () => {
-      const tempDir = await createTestDir('runDevServer-not-found');
+      const tempDir = await createTestDir('build', 'runDevServer-not-found');
       try {
         const { courseManager, lectureManager } = await createTestCourse(tempDir);
         const buildManager = createBuildManager(courseManager, lectureManager);
@@ -245,7 +229,7 @@ suite('BuildManager Test Suite', () => {
     });
 
     test('should create terminal for dev server', async () => {
-      const tempDir = await createTestDir('runDevServer-exists');
+      const tempDir = await createTestDir('build', 'runDevServer-exists');
       try {
         const { courseManager, lectureManager } = await createTestCourse(tempDir);
         createTestLectureSync(tempDir, 'test-lecture');
@@ -265,7 +249,7 @@ suite('BuildManager Test Suite', () => {
 
   suite('Output Integration', () => {
     test('should have outputChannel property', async () => {
-      const tempDir = await createTestDir('output-channel');
+      const tempDir = await createTestDir('build', 'output-channel');
       try {
         const { courseManager, lectureManager } = await createTestCourse(tempDir);
         const buildManager = createBuildManager(courseManager, lectureManager);
@@ -278,7 +262,7 @@ suite('BuildManager Test Suite', () => {
     });
 
     test('should clear output before build', async () => {
-      const tempDir = await createTestDir('output-clear');
+      const tempDir = await createTestDir('build', 'output-clear');
       try {
         const { courseManager, lectureManager } = await createTestCourse(tempDir);
         createTestLectureSync(tempDir, 'test-lecture');
@@ -295,7 +279,7 @@ suite('BuildManager Test Suite', () => {
     });
 
     test('should attach external output channel', async () => {
-      const tempDir = await createTestDir('output-attach');
+      const tempDir = await createTestDir('build', 'output-attach');
       try {
         const { courseManager, lectureManager } = await createTestCourse(tempDir);
         const buildManager = createBuildManager(courseManager, lectureManager);
@@ -313,29 +297,4 @@ suite('BuildManager Test Suite', () => {
     });
   });
 
-  // ============================================
-  // Global Cleanup
-  // ============================================
-
-  suiteTeardown(async () => {
-    // Clean up any remaining test directories
-    const testDir = path.join(__dirname, '..', '..', '..');
-    
-    try {
-      const entries = await fs.readdir(testDir);
-      const testWorkspaces = entries.filter(entry => 
-        entry.startsWith('test-workspace-build-')
-      );
-      
-      for (const dir of testWorkspaces) {
-        try {
-          await fs.rm(path.join(testDir, dir), { recursive: true, force: true });
-        } catch (e) {
-          // Ignore errors during cleanup
-        }
-      }
-    } catch (e) {
-      // Ignore errors
-    }
   });
-});

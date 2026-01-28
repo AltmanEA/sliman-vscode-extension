@@ -10,27 +10,11 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { EXTENSION_ID, OUTPUT_CHANNEL_NAME } from '../../constants';
+import { createTestDir, cleanupTestDir, cleanupAllTestDirs } from '../utils/testWorkspace';
 
 // ============================================
 // Helper Functions
 // ============================================
-
-/** Unique test directory for isolation */
-async function createTestDirectory(testName: string): Promise<string> {
-  const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-  const testDir = path.join(__dirname, '..', '..', '..', `test-workspace-${testName}-${uniqueId}`);
-  await fs.mkdir(testDir, { recursive: true });
-  return testDir;
-}
-
-/** Cleanup test directory */
-async function cleanupTestDir(tempDir: string): Promise<void> {
-  try {
-    await fs.rm(tempDir, { recursive: true, force: true });
-  } catch (error) {
-    console.warn(`Failed to cleanup test directory: ${tempDir}`, error);
-  }
-}
 
 /** Track created output channels for cleanup */
 const createdChannels: vscode.OutputChannel[] = [];
@@ -278,7 +262,7 @@ suite('Extension Registration', () => {
     test('should handle workspace without course root gracefully', async () => {
       // This test verifies error handling when workspace is not a course root
       // Create a temporary workspace without sliman.json
-      const tempDir = await createTestDirectory('non-course-workspace');
+      const tempDir = await createTestDir('extension', 'non-course-workspace');
       try {
         const extension = vscode.extensions.getExtension(EXTENSION_ID);
         assert.ok(extension, 'Extension should exist');
@@ -332,32 +316,13 @@ suite('Extension Registration', () => {
     for (const channel of createdChannels) {
       try {
         channel.dispose();
-      } catch (e) {
+      } catch {
         // Ignore disposal errors
       }
     }
     createdChannels.length = 0;
 
-    // Cleanup any remaining test directories
-    const rootDir = path.join(__dirname, '..', '..', '..');
-
-    try {
-      const entries = await fs.readdir(rootDir);
-      const testWorkspaces = entries.filter(entry =>
-        entry.startsWith('test-workspace-') &&
-        entry !== 'test-workspace' &&
-        entry !== 'test-workspace-example'
-      );
-
-      for (const dir of testWorkspaces) {
-        try {
-          await fs.rm(path.join(rootDir, dir), { recursive: true, force: true });
-        } catch (e) {
-          // Ignore errors during cleanup
-        }
-      }
-    } catch (e) {
-      // Ignore errors
-    }
+    // Cleanup all test directories created during test execution
+    await cleanupAllTestDirs();
   });
 });

@@ -55,6 +55,8 @@ src/                          # Исходный код расширения
 │   └── translit.ts           # Транслитерация кириллицы в латиницу
 └── test/
     └── suite/
+        └── utils/                 # Утилиты для тестов
+            └── testWorkspace.ts    # Унификация работы с test-workspace
         ├── courseManager.test.ts  # Тесты CourseManager
         ├── lectureManager.test.ts  # Тесты LectureManager (40+)
         ├── buildManager.test.ts    # Тесты BuildManager (10+)
@@ -107,6 +109,8 @@ pnpm run test
 ### Тестирование
 
 Тесты используют фреймворк Mocha и модуль @vscode/test-electron. Тестовые файлы располагаются в src/test/suite/. Для запуска тестов выполните pnpm run test.
+
+Все тесты используют унифицированный модуль `src/test/utils/testWorkspace.ts` для работы с временными директориями. Формат: `test-workspace-{category}-{testName}-{uniqueId}`.
 
 ---
 
@@ -435,7 +439,8 @@ interface BuildError {
 - src/managers/BuildManager.ts — сборка курса (npm run dev/build) ✓
 - src/utils/process.ts — утилита для выполнения shell-команд ✓
 - src/utils/translit.ts — транслитерация кириллицы ✓
-- Тесты: LectureManager (40+), ProcessHelper (25+), BuildManager (10+) ✓
+- Тесты: 187 тестов с унифицированными утилитами ✓
+- src/test/utils/testWorkspace.ts — унификация работы с test-workspace ✓
 
 ### Stage 3 — UI команды (В разработке)
 
@@ -472,7 +477,7 @@ interface BuildError {
 | addLecture() | src/commands.ts | ✅ Реализовано |
 | CourseManager.readSlidesJson() | src/managers/CourseManager.ts | ✅ Исправлен (корень курса) |
 | CourseManager.writeSlidesJson() | src/managers/CourseManager.ts | ✅ Исправлен (корень курса) |
-| Тесты | src/test/suite/*.test.ts | ✅ 187 тестов |
+| Тесты | src/test/suite/*.test.ts | ✅ 187 тестов, унифицированные утилиты |
 
 #### Функциональность addLecture:
 - Проверка что пользователь в корне курса
@@ -560,6 +565,25 @@ course-root/
 const outputChannel = vscode.window.createOutputChannel(OUTPUT_CHANNEL_NAME);
 outputChannel.appendLine('Сообщение');
 outputChannel.show();
+
+### Тестовые утилиты
+
+Для обеспечения единообразия тестов используется модуль `src/test/utils/testWorkspace.ts`:
+
+```typescript
+import { createTestDir, cleanupTestDir, cleanupAllTestDirs } from '../utils/testWorkspace';
+
+// Создание директории с категорией и именем теста
+const tempDir = await createTestDir('manager', 'path-resolution');
+
+// Очистка конкретной директории
+await cleanupTestDir(tempDir);
+
+// Глобальная очистка в suiteTeardown (только в extension.test.ts)
+suiteTeardown(async () => {
+  await cleanupAllTestDirs();
+});
+```
 
 ---
 

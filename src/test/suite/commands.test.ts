@@ -10,6 +10,7 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { createTestDir } from '../utils/testWorkspace';
 
 // Import the commands module for testing
 import {
@@ -41,7 +42,7 @@ suite('Commands Module', () => {
         hide: () => {},
         dispose: () => {},
         isVisible: false
-      } as any;
+      } as unknown as vscode.OutputChannel;
 
       // Should not throw
       assert.doesNotThrow(() => {
@@ -298,7 +299,7 @@ suite('Commands Module', () => {
   suite('Command Execution', () => {
     test('createCourse should not throw', async () => {
       // Create temporary directory for test
-      const tempDir = path.join(__dirname, '..', '..', '..', `test-workspace-createCourse-${Date.now()}`);
+      const tempDir = await createTestDir('commands', 'createCourse');
       await fs.mkdir(tempDir, { recursive: true });
 
       // Initialize with mock channel before execution
@@ -311,7 +312,7 @@ suite('Commands Module', () => {
         hide: () => {},
         dispose: () => {},
         isVisible: false
-      } as any;
+      } as unknown as vscode.OutputChannel;
       initializeCommands(mockChannel, path.join(__dirname, '..', '..', '..'));
 
       // Mock workspaceFolders
@@ -330,8 +331,8 @@ suite('Commands Module', () => {
       vscode.window.showWorkspaceFolderPick = async () => ({
         uri: vscode.Uri.file(tempDir),
         name: 'test-workspace'
-      } as vscode.WorkspaceFolder);
-      vscode.window.showWarningMessage = async () => 'Create' as any;
+      } as unknown as vscode.WorkspaceFolder);
+      vscode.window.showWarningMessage = async () => 'Create' as unknown as string;
 
       try {
         await createCourse(); // Should not throw
@@ -372,7 +373,7 @@ suite('Commands Module', () => {
 
     test('addLecture should not throw', async () => {
       // Create temporary directory with course structure (sliman.json)
-      const tempDir = path.join(__dirname, '..', '..', '..', `test-workspace-addLecture-${Date.now()}`);
+      const tempDir = await createTestDir('commands', 'addLecture');
       await fs.mkdir(tempDir, { recursive: true });
       await fs.writeFile(path.join(tempDir, 'sliman.json'), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');
       await fs.writeFile(path.join(tempDir, 'slides.json'), JSON.stringify({ slides: [] }), 'utf-8');
@@ -391,7 +392,7 @@ suite('Commands Module', () => {
         hide: () => {},
         dispose: () => {},
         isVisible: false
-      } as any;
+      } as unknown as vscode.OutputChannel;
       initializeCommands(mockChannel, path.join(__dirname, '..', '..', '..'));
 
       // Mock managers by directly setting private properties
@@ -406,19 +407,19 @@ suite('Commands Module', () => {
       };
 
       // Store originals
-      const originalCourseManager = (managersContainer as any)._courseManager;
-      const originalLectureManager = (managersContainer as any)._lectureManager;
+      const originalCourseManager = (managersContainer as unknown as { _courseManager: unknown })._courseManager;
+      const originalLectureManager = (managersContainer as unknown as { _lectureManager: unknown })._lectureManager;
 
       // Set mocks directly
-      (managersContainer as any)._courseManager = mockCourseManager;
-      (managersContainer as any)._lectureManager = mockLectureManager;
+      (managersContainer as unknown as { _courseManager: unknown })._courseManager = mockCourseManager;
+      (managersContainer as unknown as { _lectureManager: unknown })._lectureManager = mockLectureManager;
 
       // Mock UI functions
       const originalShowInputBox = vscode.window.showInputBox;
       const originalShowInformationMessage = vscode.window.showInformationMessage;
 
       vscode.window.showInputBox = async () => 'Test Lecture';
-      vscode.window.showInformationMessage = async () => 'Create' as any;
+      vscode.window.showInformationMessage = async () => 'Create' as unknown as string;
 
       try {
         await addLecture(); // Should not throw
@@ -428,8 +429,8 @@ suite('Commands Module', () => {
         vscode.window.showInformationMessage = originalShowInformationMessage;
 
         // Restore originals
-        (managersContainer as any)._courseManager = originalCourseManager;
-        (managersContainer as any)._lectureManager = originalLectureManager;
+        (managersContainer as unknown as { _courseManager: unknown })._courseManager = originalCourseManager;
+        (managersContainer as unknown as { _lectureManager: unknown })._lectureManager = originalLectureManager;
 
         // Cleanup
         await fs.rm(tempDir, { recursive: true, force: true });
