@@ -184,6 +184,13 @@ export async function addLecture(): Promise<void> {
     throw new Error('Commands not initialized');
   }
 
+  const courseManager = managersContainer.courseManager;
+  if (!courseManager) {
+    outputChannel.appendLine('CourseManager not initialized');
+    void vscode.window.showErrorMessage('CourseManager not initialized');
+    return;
+  }
+
   outputChannel.appendLine('Command: addLecture - Not yet implemented');
   void vscode.window.showInformationMessage('addLecture: Команда в разработке');
 }
@@ -195,6 +202,13 @@ export async function addLecture(): Promise<void> {
 export async function runLecture(): Promise<void> {
   if (!outputChannel) {
     throw new Error('Commands not initialized');
+  }
+
+  const courseManager = managersContainer.courseManager;
+  if (!courseManager) {
+    outputChannel.appendLine('CourseManager not initialized');
+    void vscode.window.showErrorMessage('CourseManager not initialized');
+    return;
   }
 
   outputChannel.appendLine('Command: runLecture - Not yet implemented');
@@ -210,6 +224,13 @@ export async function buildLecture(): Promise<void> {
     throw new Error('Commands not initialized');
   }
 
+  const courseManager = managersContainer.courseManager;
+  if (!courseManager) {
+    outputChannel.appendLine('CourseManager not initialized');
+    void vscode.window.showErrorMessage('CourseManager not initialized');
+    return;
+  }
+
   outputChannel.appendLine('Command: buildLecture - Not yet implemented');
   void vscode.window.showInformationMessage('buildLecture: Команда в разработке');
 }
@@ -221,6 +242,13 @@ export async function buildLecture(): Promise<void> {
 export async function openSlides(): Promise<void> {
   if (!outputChannel) {
     throw new Error('Commands not initialized');
+  }
+
+  const courseManager = managersContainer.courseManager;
+  if (!courseManager) {
+    outputChannel.appendLine('CourseManager not initialized');
+    void vscode.window.showErrorMessage('CourseManager not initialized');
+    return;
   }
 
   outputChannel.appendLine('Command: openSlides - Not yet implemented');
@@ -236,6 +264,13 @@ export async function buildCourse(): Promise<void> {
     throw new Error('Commands not initialized');
   }
 
+  const courseManager = managersContainer.courseManager;
+  if (!courseManager) {
+    outputChannel.appendLine('CourseManager not initialized');
+    void vscode.window.showErrorMessage('CourseManager not initialized');
+    return;
+  }
+
   outputChannel.appendLine('Command: buildCourse - Not yet implemented');
   void vscode.window.showInformationMessage('buildCourse: Команда в разработке');
 }
@@ -247,6 +282,13 @@ export async function buildCourse(): Promise<void> {
 export async function setupPages(): Promise<void> {
   if (!outputChannel) {
     throw new Error('Commands not initialized');
+  }
+
+  const courseManager = managersContainer.courseManager;
+  if (!courseManager) {
+    outputChannel.appendLine('CourseManager not initialized');
+    void vscode.window.showErrorMessage('CourseManager not initialized');
+    return;
   }
 
   outputChannel.appendLine('Command: setupPages - Not yet implemented');

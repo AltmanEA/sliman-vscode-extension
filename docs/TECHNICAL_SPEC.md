@@ -166,7 +166,7 @@ File is generated and updated automatically.
 
 ## 4. Templates
 
-The extension uses embedded templates:
+The extension uses embedded templates, copied by appropriate managers:
 
 ```text
 template/
@@ -238,13 +238,9 @@ Course: course_data
 
 ### 6.1. Modules
 
-* **Course Manager** — `sliman.json`, `slides.json`
-* **Lecture Manager** — Lecture creation and opening
-* **Build Manager** — sli.dev CLI execution
-* **Template Manager** — Template copying
-* **UI Layer** — Commands, Tree View, notifications
-
----
+* Course Manager — sliman.json, slides.json, course-level templates
+* Lecture Manager — Lecture creation, opening, lecture-level templates
+* Build Manager — sli.dev CLI execution
 
 ### 6.2. Architectural Principles
 

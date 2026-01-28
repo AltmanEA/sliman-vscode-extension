@@ -38,17 +38,19 @@ activate() → Check workspaceFolders → If empty: idle state, commands return 
 | Component | Files | Description |
 |-----------|-------|-------------|
 | **Constants** | `src/constants.ts` | Path constants, JSON structure |
-| **Template Manager** | `src/managers/TemplateManager.ts` | Template copying (slides.md, index.html, package.json, static.yml) |
 | **Course Manager** | `src/managers/CourseManager.ts` | Read/write `sliman.json`, `slides.json` |
 
-**Templates to Create:**
-```
-template/
-├── slides.md          # Lecture template
-├── index.html        # Course landing page
-├── package.json      # Course frontend build
-└── static.yml        # GitHub Actions for Pages
-```
+-Templates to Create:
+-```
+-template/
+-├── slides.md          # Lecture template
+-├── index.html        # Course landing page
+-├── package.json      # Course frontend build
+-└── static.yml        # GitHub Actions for Pages
+-```
++**Note:** Template copying is distributed:
++  - `slides.md`, `package.json` → LectureManager (Add Lecture command)
++  - `index.html`, `static.yml` → BuildManager (Build Course / Setup GitHub Pages)
 
 ---
 
@@ -56,9 +58,15 @@ template/
 
 | Component | Files | Description |
 |-----------|-------|-------------|
-| **Lecture Manager** | `src/managers/LectureManager.ts` | Lecture directory creation, sli.dev initialization |
+| **Lecture Manager** | `src/managers/LectureManager.ts` | Lecture directory creation, sli.dev initialization, template copying |
 | **Build Manager** | `src/managers/BuildManager.ts` | Execute `npm run dev` / `npm run build` for lectures and course |
 | **Process Helper** | `src/utils/process.ts` | Shell command execution utility |
+
+**Duties by Manager:**
+| Manager | Templates | Actions |
+|---------|-----------|---------|
+| LectureManager | slides.md, package.json | Add Lecture |
+| BuildManager | index.html, static.yml | Build Course, Setup GitHub Pages |
 
 **Deliverables:**
 - Lecture creation with independent sli.dev setup
@@ -161,17 +169,17 @@ src/
 |----------|------|--------------|
 | **P0** | Workspace Validation | — |
 | **P0** | Constants | — |
-| **P0** | Template Manager | Workspace Validation |
-| **P0** | Course Manager (sliman.json) | Workspace Validation, Template Manager |
-| **P0** | Add Lecture | Course Manager, Template Manager |
+-| **P0** | Template Manager | Workspace Validation |
+| **P0** | Course Manager (sliman.json) | Workspace Validation |
+| **P0** | Add Lecture | Course Manager |
 | **P0** | Open slides.md | Workspace Validation |
 | **P1** | Run Lecture | Lecture Manager |
 | **P1** | Build Lecture | Build Manager |
 | **P1** | Course Tree View | Course Manager |
 | **P1** | Build Course | Build Manager |
-| **P2** | Create Course | Template Manager |
+| **P2** | Create Course | Course Manager |
 | **P2** | Scan Course | Course Manager |
-| **P2** | Setup GitHub Pages | Template Manager |
+| **P2** | Setup GitHub Pages | Build Manager |
 
 ---
 
@@ -214,3 +222,25 @@ src/
 5. Implement Stage 4: Course Explorer Tree View
 6. Implement Stage 5: Context menus
 7. Testing and polish
+
+---
+
+## extension.ts
+
+```ts
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    void vscode.window.showErrorMessage('No workspace folder is open');
+    // Не регистрируем команды — расширение в idle state
+    return;
+  }
+
+  managersContainer.initialize(workspaceFolders[0].uri);
+  
+  // Команды регистрируются ТОЛЬКО при валидном workspace
+  const commands = [ ... ];
+  context.subscriptions.push(...commands);
+}
+```

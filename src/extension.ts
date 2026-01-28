@@ -26,27 +26,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders || workspaceFolders.length === 0) {
     void vscode.window.showErrorMessage('No workspace folder is open');
+    // Commands are NOT registered - extension stays in idle state
     return;
+  } else {
+    managersContainer.initialize(workspaceFolders[0].uri);
+
+    // Initialize commands module with output channel and extension path
+    initializeCommands(outputChannel, context.extensionPath);
+
+    // Register all commands (only when workspace is valid)
+    const commands = [
+      vscode.commands.registerCommand('sliman.createCourse', createCourse),
+      vscode.commands.registerCommand('sliman.scanCourse', scanCourse),
+      vscode.commands.registerCommand('sliman.addLecture', addLecture),
+      vscode.commands.registerCommand('sliman.runLecture', runLecture),
+      vscode.commands.registerCommand('sliman.buildLecture', buildLecture),
+      vscode.commands.registerCommand('sliman.openSlides', openSlides),
+      vscode.commands.registerCommand('sliman.buildCourse', buildCourse),
+      vscode.commands.registerCommand('sliman.setupPages', setupPages)
+    ];
+
+    context.subscriptions.push(...commands);
   }
-
-  managersContainer.initialize(workspaceFolders[0].uri);
-
-  // Initialize commands module with output channel and extension path
-  initializeCommands(outputChannel, context.extensionPath);
-
-  // Register all commands
-  const commands = [
-    vscode.commands.registerCommand('sliman.createCourse', createCourse),
-    vscode.commands.registerCommand('sliman.scanCourse', scanCourse),
-    vscode.commands.registerCommand('sliman.addLecture', addLecture),
-    vscode.commands.registerCommand('sliman.runLecture', runLecture),
-    vscode.commands.registerCommand('sliman.buildLecture', buildLecture),
-    vscode.commands.registerCommand('sliman.openSlides', openSlides),
-    vscode.commands.registerCommand('sliman.buildCourse', buildCourse),
-    vscode.commands.registerCommand('sliman.setupPages', setupPages)
-  ];
-
-  context.subscriptions.push(...commands);
 }
 
 export function deactivate(): void {
