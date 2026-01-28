@@ -9,7 +9,27 @@
 
 ## Overview
 
-This plan outlines the implementation phases for the VS Code extension. Current work focuses on Stage 1.
+This plan outlines the implementation phases for the VS Code extension. Current work focuses on Stage 0.
+
+---
+
+## Stage 0 - Workspace Validation (Prerequisite)
+
+| Component | Description |
+|-----------|-------------|
+| `extension.ts` | Check `vscode.workspace.workspaceFolders` on activation |
+| Workspace Guard | All commands verify workspace before execution |
+| User Feedback | Show error message when no workspace open |
+
+**Activation Flow:**
+```
+activate() → Check workspaceFolders → If empty: idle state, commands return error
+```
+
+**Error Message:**
+```
+"Please open a folder workspace to use this extension."
+```
 
 ---
 
@@ -137,13 +157,14 @@ src/
 
 ## Implementation Priority
 
-| Priority | Command | Dependencies |
-|----------|---------|--------------|
+| Priority | Item | Dependencies |
+|----------|------|--------------|
+| **P0** | Workspace Validation | — |
 | **P0** | Constants | — |
-| **P0** | Template Manager | Constants |
-| **P0** | Course Manager (sliman.json) | Template Manager |
+| **P0** | Template Manager | Workspace Validation |
+| **P0** | Course Manager (sliman.json) | Workspace Validation, Template Manager |
 | **P0** | Add Lecture | Course Manager, Template Manager |
-| **P0** | Open slides.md | — |
+| **P0** | Open slides.md | Workspace Validation |
 | **P1** | Run Lecture | Lecture Manager |
 | **P1** | Build Lecture | Build Manager |
 | **P1** | Course Tree View | Course Manager |
@@ -159,7 +180,7 @@ src/
 ```
 src/
 ├── constants.ts              # Stage 1
-├── extension.ts              # Entry point
+├── extension.ts              # Entry point (includes workspace validation)
 ├── managers/
 │   ├── TemplateManager.ts    # Stage 1
 │   ├── CourseManager.ts      # Stage 1
@@ -186,9 +207,10 @@ src/
 
 ## Next Steps
 
-1. Implement Stage 1: Constants, Template Manager, Course Manager
-2. Implement Stage 2: Lecture Manager and Build Manager
-3. Implement Stage 3: Core commands (Add Lecture, Open slides.md)
-4. Implement Stage 4: Course Explorer Tree View
-5. Implement Stage 5: Context menus
-6. Testing and polish
+1. Implement Stage 0: Workspace validation in extension.ts
+2. Implement Stage 1: Constants, Template Manager, Course Manager
+3. Implement Stage 2: Lecture Manager and Build Manager
+4. Implement Stage 3: Core commands (Add Lecture, Open slides.md)
+5. Implement Stage 4: Course Explorer Tree View
+6. Implement Stage 5: Context menus
+7. Testing and polish

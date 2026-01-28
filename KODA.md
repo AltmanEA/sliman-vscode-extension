@@ -412,12 +412,12 @@ interface BuildError {
 | ID команды | Название | Описание |
 |------------|----------|----------|
 | sliman.scanCourse | Scan Course | Сканирует курс и выводит информацию: название курса, список лекций |
+| sliman.createCourse | Create Course | Создаёт новую структуру курса (sliman.json, slides.json, slides/) |
 
 ### Планируемые команды
 
 | ID команды | Название | Статус | Описание |
 |------------|----------|--------|----------|
-| sliman.createCourse | Create Course | Stage 3 | Создаёт новую структуру курса |
 | sliman.addLecture | Add Lecture | Stage 3 | Добавляет новую лекцию |
 | sliman.runLecture | Run Lecture | Stage 3 | Запускает лекцию в режиме разработки |
 | sliman.buildLecture | Build Lecture | Stage 3 | Собирает лекцию в статические файлы |
@@ -443,13 +443,27 @@ interface BuildError {
 
 | ID команды | Название | Статус | Описание |
 |------------|----------|--------|----------|
-| sliman.createCourse | Create Course | ⏳ | Создаёт новую структуру курса |
+| sliman.createCourse | Create Course | ✅ Готово | Создаёт новую структуру курса |
 | sliman.addLecture | Add Lecture | ⏳ | Добавляет новую лекцию |
 | sliman.runLecture | Run Lecture | ⏳ | Запускает лекцию в режиме разработки |
 | sliman.buildLecture | Build Lecture | ⏳ | Собирает лекцию в статические файлы |
 | sliman.openSlides | Open slides.md | ⏳ | Открывает файл slides.md текущей лекции |
 | sliman.buildCourse | Build Course | ⏳ | Собирает весь курс |
 | sliman.setupPages | Setup GitHub Pages | ⏳ | Настраивает GitHub Pages для курса |
+
+### Stage 3.1 — Command Registration Framework (Завершено)
+
+| Компонент | Файл | Статус |
+|-----------|------|--------|
+| src/commands.ts | Реализовано | Экспорт всех команд, initializeCommands() |
+| src/extension.ts | Обновлено | Инициализация менеджеров, регистрация команд |
+
+### Stage 3.2 — Create Course Command (Завершено)
+
+| Компонент | Файл | Статус |
+|-----------|------|--------|
+| createCourse() | src/commands.ts | ✅ Реализовано |
+| Тесты | src/test/suite/commands.test.ts | ✅ 187 тестов |
 
 ### Stage 4 — Tree View (Планируется)
 

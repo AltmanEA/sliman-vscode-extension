@@ -10,6 +10,10 @@
 
 ## 1. Purpose and Scope
 
+### 1.1. Prerequisites
+
+The extension requires VS Code to be opened with a **folder workspace**. If VS Code is opened without a folder (e.g., just a single file or empty window), the extension performs no actions and remains dormant. All commands check for valid workspace before execution.
+
 The extension is intended for instructors and course authors who develop **lecture sets (presentations)** using **sli.dev** and publish them as a unified static site (e.g., via GitHub Pages).
 
 The extension:
@@ -270,6 +274,10 @@ Course: course_data
 * All operations are local
 
 ### 7.4. Compatibility
+
+* **Workspace Requirement:** Extension activates only when VS Code has an open folder workspace. Empty windows, single-file windows, or remote sessions without local folder are not supported.
+* **Activation Check:** On extension activation, `vscode.workspace.workspaceFolders` is verified. If empty, extension enters idle state.
+* **Command Guard:** Every registered command includes workspace validation check before execution.
 
 * VS Code LTS
 * Node.js LTS

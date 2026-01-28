@@ -7,6 +7,7 @@
  */
 
 import * as assert from 'assert';
+import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 
@@ -29,7 +30,7 @@ suite('Commands Module', () => {
   // ============================================
 
   suite('initializeCommands', () => {
-    test('should accept valid output channel', () => {
+    test('should accept valid output channel and extension path', () => {
       // Create minimal mock channel
       const mockChannel = {
         name: 'Test',
@@ -44,8 +45,8 @@ suite('Commands Module', () => {
 
       // Should not throw
       assert.doesNotThrow(() => {
-        initializeCommands(mockChannel);
-      }, 'initializeCommands should accept valid output channel');
+        initializeCommands(mockChannel, '/mock/extension/path');
+      }, 'initializeCommands should accept valid output channel and extension path');
     });
   });
 
@@ -296,6 +297,10 @@ suite('Commands Module', () => {
 
   suite('Command Execution', () => {
     test('createCourse should not throw', async () => {
+      // Create temporary directory for test
+      const tempDir = path.join(__dirname, '..', '..', '..', `test-workspace-createCourse-${Date.now()}`);
+      await fs.mkdir(tempDir, { recursive: true });
+
       // Initialize with mock channel before execution
       const mockChannel = {
         name: 'Test',
@@ -307,9 +312,62 @@ suite('Commands Module', () => {
         dispose: () => {},
         isVisible: false
       } as any;
-      initializeCommands(mockChannel);
+      initializeCommands(mockChannel, path.join(__dirname, '..', '..', '..'));
 
-      await createCourse(); // Should not throw
+      // Mock workspaceFolders
+      const originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+      Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+        value: [{ uri: vscode.Uri.file(tempDir), name: 'test-workspace' }],
+        writable: true
+      });
+
+      // Mock UI functions
+      const originalShowInputBox = vscode.window.showInputBox;
+      const originalShowWorkspaceFolderPick = vscode.window.showWorkspaceFolderPick;
+      const originalShowWarningMessage = vscode.window.showWarningMessage;
+
+      vscode.window.showInputBox = async () => 'Test Course';
+      vscode.window.showWorkspaceFolderPick = async () => ({
+        uri: vscode.Uri.file(tempDir),
+        name: 'test-workspace'
+      } as vscode.WorkspaceFolder);
+      vscode.window.showWarningMessage = async () => 'Create' as any;
+
+      try {
+        await createCourse(); // Should not throw
+
+        // Verify course files were created
+        const slimanPath = path.join(tempDir, 'sliman.json');
+        const slidesJsonPath = path.join(tempDir, 'slides.json');
+        const indexPath = path.join(tempDir, 'index.html');
+        const slidesDir = path.join(tempDir, 'slides');
+
+        const slimanExists = await fs.stat(slimanPath).then(() => true).catch(() => false);
+        const slidesJsonExists = await fs.stat(slidesJsonPath).then(() => true).catch(() => false);
+        const indexExists = await fs.stat(indexPath).then(() => true).catch(() => false);
+        const slidesDirExists = await fs.stat(slidesDir).then(() => true).catch(() => false);
+
+        assert.strictEqual(slimanExists, true, 'sliman.json should be created');
+        assert.strictEqual(slidesJsonExists, true, 'slides.json should be created');
+        assert.strictEqual(indexExists, true, 'index.html should be created');
+        assert.strictEqual(slidesDirExists, true, 'slides/ directory should be created');
+      } finally {
+        // Restore original functions
+        vscode.window.showInputBox = originalShowInputBox;
+        vscode.window.showWorkspaceFolderPick = originalShowWorkspaceFolderPick;
+        vscode.window.showWarningMessage = originalShowWarningMessage;
+
+        // Restore workspaceFolders
+        if (originalWorkspaceFolders) {
+          Object.defineProperty(vscode.workspace, 'workspaceFolders', {
+            value: originalWorkspaceFolders,
+            writable: true
+          });
+        }
+
+        // Cleanup
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
     });
 
     test('addLecture should not throw', async () => {

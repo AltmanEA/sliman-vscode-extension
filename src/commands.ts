@@ -1,16 +1,21 @@
 'use strict';
 
 import * as vscode from 'vscode';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { managersContainer } from './managers/ManagersContainer';
 
 let outputChannel: vscode.OutputChannel | null = null;
+let extensionPath: string = '';
 
 /**
- * Initialize commands module with output channel reference
+ * Initialize commands module with output channel and extension path
  * @param channel - The output channel for logging
+ * @param extPath - The extension's root path for accessing bundled templates
  */
-export function initializeCommands(channel: vscode.OutputChannel): void {
+export function initializeCommands(channel: vscode.OutputChannel, extPath: string): void {
   outputChannel = channel;
+  extensionPath = extPath;
 }
 
 /**
@@ -22,8 +27,115 @@ export async function createCourse(): Promise<void> {
     throw new Error('Commands not initialized');
   }
 
-  outputChannel.appendLine('Command: createCourse - Not yet implemented');
-  void vscode.window.showInformationMessage('createCourse: Команда в разработке');
+  const channel = outputChannel;
+  channel.appendLine('Command: createCourse - Starting...');
+  channel.show();
+
+  // Step 1: Get course name
+  const courseName = await vscode.window.showInputBox({
+    prompt: 'Enter course name',
+    placeHolder: 'e.g., Introduction to TypeScript',
+    validateInput: (value) => {
+      if (!value || value.trim().length === 0) {
+        return 'Course name cannot be empty';
+      }
+      if (value.length > 100) {
+        return 'Course name must be 100 characters or less';
+      }
+      return null;
+    }
+  });
+
+  if (!courseName) {
+    channel.appendLine('Command cancelled: No course name provided');
+    return;
+  }
+
+  channel.appendLine(`Course name: ${courseName}`);
+
+  // Step 2: Get workspace folder
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    channel.appendLine('Error: No workspace folder is open');
+    void vscode.window.showErrorMessage('No workspace folder is open');
+    return;
+  }
+
+  let selectedFolder: vscode.WorkspaceFolder;
+
+  if (workspaceFolders.length === 1) {
+    selectedFolder = workspaceFolders[0];
+    channel.appendLine(`Using workspace: ${selectedFolder.uri.fsPath}`);
+  } else {
+    const selected = await vscode.window.showWorkspaceFolderPick({
+      placeHolder: 'Select workspace folder for the course'
+    });
+
+    if (!selected) {
+      channel.appendLine('Command cancelled: No workspace folder selected');
+      return;
+    }
+
+    selectedFolder = selected;
+    channel.appendLine(`Selected workspace: ${selectedFolder.uri.fsPath}`);
+  }
+
+  // Step 3: Confirm creation
+  const confirm = await vscode.window.showWarningMessage(
+    `Create course "${courseName}" in "${selectedFolder.uri.fsPath}"?`,
+    { modal: true },
+    'Create', 'Cancel'
+  );
+
+  if (confirm !== 'Create') {
+    channel.appendLine('Command cancelled: User declined creation');
+    return;
+  }
+
+  const coursePath = selectedFolder.uri.fsPath;
+
+  try {
+    // Step 4: Create course structure
+    channel.appendLine('Creating course structure...');
+
+    // Create slides/ directory
+    const slidesDir = path.join(coursePath, 'slides');
+    await fs.mkdir(slidesDir, { recursive: true });
+    channel.appendLine(`Created directory: ${slidesDir}`);
+
+    // Create sliman.json
+    const slimanContent = JSON.stringify({ course_name: courseName }, null, 2);
+    const slimanPath = path.join(coursePath, 'sliman.json');
+    await fs.writeFile(slimanPath, slimanContent);
+    channel.appendLine(`Created file: ${slimanPath}`);
+
+    // Create slides.json
+    const slidesContent = JSON.stringify({ slides: [] }, null, 2);
+    const slidesJsonPath = path.join(coursePath, 'slides.json');
+    await fs.writeFile(slidesJsonPath, slidesContent);
+    channel.appendLine(`Created file: ${slidesJsonPath}`);
+
+    // Copy index.html template
+    const templateIndexPath = path.join(extensionPath, 'template', 'index.html');
+    const indexDestPath = path.join(coursePath, 'index.html');
+
+    try {
+      let indexContent = await fs.readFile(templateIndexPath, 'utf-8');
+      // Update course name in index.html if needed
+      await fs.writeFile(indexDestPath, indexContent);
+      channel.appendLine(`Copied template: ${templateIndexPath} -> ${indexDestPath}`);
+    } catch (templateError) {
+      channel.appendLine(`Warning: Could not copy index.html template: ${templateError}`);
+    }
+
+    channel.appendLine('Course created successfully!');
+    void vscode.window.showInformationMessage(`Course "${courseName}" created!`);
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    channel.appendLine(`Error creating course: ${errorMessage}`);
+    void vscode.window.showErrorMessage(`Failed to create course: ${errorMessage}`);
+  }
 }
 
 /**

@@ -64,6 +64,7 @@
     "test": "pnpm run compile && pnpm run vscode-test",
     "vscode-test": "vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test",
     "test:course": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^CourseManager\"",
+    "test:commands": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Command\"",
     "test:example": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Extension\"",
     "test:lecture": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Lecture\"",
     "test:process": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Process\"",

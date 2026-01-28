@@ -31,8 +31,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   managersContainer.initialize(workspaceFolders[0].uri);
 
-  // Initialize commands module with output channel
-  initializeCommands(outputChannel);
+  // Initialize commands module with output channel and extension path
+  initializeCommands(outputChannel, context.extensionPath);
 
   // Register all commands
   const commands = [
