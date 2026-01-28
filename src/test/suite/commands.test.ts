@@ -371,7 +371,69 @@ suite('Commands Module', () => {
     });
 
     test('addLecture should not throw', async () => {
-      await addLecture(); // Should not throw
+      // Create temporary directory with course structure (sliman.json)
+      const tempDir = path.join(__dirname, '..', '..', '..', `test-workspace-addLecture-${Date.now()}`);
+      await fs.mkdir(tempDir, { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'sliman.json'), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');
+      await fs.writeFile(path.join(tempDir, 'slides.json'), JSON.stringify({ slides: [] }), 'utf-8');
+      await fs.mkdir(path.join(tempDir, 'slides'), { recursive: true });
+      await fs.mkdir(path.join(tempDir, 'template'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'template', 'slides.md'), '---\ntitle: {{TITLE}}\n---\n', 'utf-8');
+      await fs.writeFile(path.join(tempDir, 'template', 'package.json'), '{"name": "{{LECTURE_NAME}}"}', 'utf-8');
+
+      // Initialize with mock channel
+      const mockChannel = {
+        name: 'Test',
+        appendLine: () => {},
+        append: () => {},
+        clear: () => {},
+        show: () => {},
+        hide: () => {},
+        dispose: () => {},
+        isVisible: false
+      } as any;
+      initializeCommands(mockChannel, path.join(__dirname, '..', '..', '..'));
+
+      // Mock managers by directly setting private properties
+      const { managersContainer } = await import('../../managers/ManagersContainer');
+      const mockCourseManager = {
+        isCourseRoot: async () => true,
+        getCourseRoot: () => vscode.Uri.file(tempDir),
+        isPathInCourseRoot: () => true
+      };
+      const mockLectureManager = {
+        createLecture: async () => 'test-lecture'
+      };
+
+      // Store originals
+      const originalCourseManager = (managersContainer as any)._courseManager;
+      const originalLectureManager = (managersContainer as any)._lectureManager;
+
+      // Set mocks directly
+      (managersContainer as any)._courseManager = mockCourseManager;
+      (managersContainer as any)._lectureManager = mockLectureManager;
+
+      // Mock UI functions
+      const originalShowInputBox = vscode.window.showInputBox;
+      const originalShowInformationMessage = vscode.window.showInformationMessage;
+
+      vscode.window.showInputBox = async () => 'Test Lecture';
+      vscode.window.showInformationMessage = async () => 'Create' as any;
+
+      try {
+        await addLecture(); // Should not throw
+      } finally {
+        // Restore original functions
+        vscode.window.showInputBox = originalShowInputBox;
+        vscode.window.showInformationMessage = originalShowInformationMessage;
+
+        // Restore originals
+        (managersContainer as any)._courseManager = originalCourseManager;
+        (managersContainer as any)._lectureManager = originalLectureManager;
+
+        // Cleanup
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
     });
 
     test('runLecture should not throw', async () => {

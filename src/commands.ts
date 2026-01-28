@@ -4,6 +4,8 @@ import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { managersContainer } from './managers/ManagersContainer';
+import { LECTURE_PREFIX } from './constants';
+import { generateLectureFolderName, isValidFolderName } from './utils/translit';
 
 let outputChannel: vscode.OutputChannel | null = null;
 let extensionPath: string = '';
@@ -184,15 +186,102 @@ export async function addLecture(): Promise<void> {
     throw new Error('Commands not initialized');
   }
 
+  const channel = outputChannel;
+  channel.appendLine('Command: addLecture');
+  channel.show();
+
+  // Get managers
   const courseManager = managersContainer.courseManager;
-  if (!courseManager) {
-    outputChannel.appendLine('CourseManager not initialized');
-    void vscode.window.showErrorMessage('CourseManager not initialized');
+  const lectureManager = managersContainer.lectureManager;
+
+  if (!courseManager || !lectureManager) {
+    channel.appendLine('Managers not initialized');
+    void vscode.window.showErrorMessage('Managers not initialized');
     return;
   }
 
-  outputChannel.appendLine('Command: addLecture - Not yet implemented');
-  void vscode.window.showInformationMessage('addLecture: Команда в разработке');
+  // Step 1: Check if we're in a course root
+  const isRoot = await courseManager.isCourseRoot();
+  if (!isRoot) {
+    channel.appendLine('Not in a course root directory');
+    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
+    return;
+  }
+
+  const courseRoot = courseManager.getCourseRoot();
+  channel.appendLine(`Course root: ${courseRoot.fsPath}`);
+
+  // Step 2: Get lecture title from user
+  const title = await vscode.window.showInputBox({
+    prompt: 'Enter lecture title',
+    placeHolder: 'e.g., Introduction to React',
+    validateInput: (value) => {
+      if (!value || value.trim().length < 3) {
+        return 'Title must be at least 3 characters';
+      }
+      if (value.length > 200) {
+        return 'Title is too long (max 200 characters)';
+      }
+      return null;
+    }
+  });
+
+  if (!title) {
+    channel.appendLine('Lecture creation cancelled (no title)');
+    return;
+  }
+
+  channel.appendLine(`Lecture title: ${title}`);
+
+  // Step 3: Generate and suggest folder name
+  const suggestedFolderName = generateLectureFolderName(title);
+  const defaultFolderName = `${LECTURE_PREFIX}${suggestedFolderName}`;
+
+  // Step 4: Let user confirm or edit folder name
+  const folderName = await vscode.window.showInputBox({
+    prompt: 'Enter lecture folder name',
+    value: defaultFolderName,
+    validateInput: (value) => {
+      if (!value || value.trim().length < 1) {
+        return 'Folder name is required';
+      }
+      if (!isValidFolderName(value)) {
+        return 'Invalid folder name. Use only Latin letters, numbers, and hyphens';
+      }
+      return null;
+    }
+  });
+
+  if (!folderName) {
+    channel.appendLine('Lecture creation cancelled (no folder name)');
+    return;
+  }
+
+  channel.appendLine(`Folder name: ${folderName}`);
+
+  // Step 5: Confirm creation
+  const confirm = await vscode.window.showInformationMessage(
+    `Create lecture "${title}" (${folderName})?`,
+    { modal: true },
+    'Create', 'Cancel'
+  );
+
+  if (confirm !== 'Create') {
+    channel.appendLine('Lecture creation cancelled by user');
+    return;
+  }
+
+  // Step 6: Create lecture
+  try {
+    channel.appendLine('Creating lecture...');
+    await lectureManager.createLecture(folderName, title);
+    channel.appendLine(`Lecture "${title}" created successfully!`);
+    void vscode.window.showInformationMessage(`Lecture "${title}" created!`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    channel.appendLine(`Error creating lecture: ${errorMessage}`);
+    void vscode.window.showErrorMessage(`Failed to create lecture: ${errorMessage}`);
+  }
 }
 
 /**

@@ -135,12 +135,11 @@ export class CourseManager {
   // ============================================
 
   /**
-   * Reads the slides configuration from slides.json (in built/ directory)
+   * Reads the slides configuration from slides.json (in course root)
    * @returns Promise that resolves to SlidesConfig or null if not found/invalid
    */
   async readSlidesJson(): Promise<SlidesConfig | null> {
-    const builtDir = this.getBuiltCourseDir();
-    const slidesJsonUri = vscode.Uri.joinPath(builtDir, SLIDES_FILENAME);
+    const slidesJsonUri = vscode.Uri.joinPath(this.workspaceUri, SLIDES_FILENAME);
     try {
       const content = await vscode.workspace.fs.readFile(slidesJsonUri);
       const parsed = JSON.parse(new TextDecoder().decode(content));
@@ -159,13 +158,12 @@ export class CourseManager {
   }
 
   /**
-   * Writes the slides configuration to slides.json (in built/ directory)
+   * Writes the slides configuration to slides.json (in course root)
    * @param config - The SlidesConfig to write
    * @returns Promise that resolves when complete
    */
   async writeSlidesJson(config: SlidesConfig): Promise<void> {
-    const builtDir = this.getBuiltCourseDir();
-    const slidesJsonUri = vscode.Uri.joinPath(builtDir, SLIDES_FILENAME);
+    const slidesJsonUri = vscode.Uri.joinPath(this.workspaceUri, SLIDES_FILENAME);
     try {
       const content = JSON.stringify(config, null, 2);
       await vscode.workspace.fs.writeFile(slidesJsonUri, new TextEncoder().encode(content));

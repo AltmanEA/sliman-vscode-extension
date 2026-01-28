@@ -167,9 +167,9 @@ async function createTestCourse(tempDir: string): Promise<{
   // Create built directory
   await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
 
-  // Create slides.json
+  // Create slides.json in course root
   await fs.writeFile(
-    path.join(tempDir, BUILT_DIR, SLIDES_FILENAME),
+    path.join(tempDir, SLIDES_FILENAME),
     JSON.stringify({ slides: [] }, null, 2),
     'utf-8'
   );
@@ -299,8 +299,8 @@ suite('Integration Tests', () => {
         const packageContent = await fs.readFile(packagePath, 'utf-8');
         assert.ok(packageContent.includes('"name": "test-lecture"'), 'package.json should have correct name');
 
-        // Check built/slides.json was updated
-        const slidesJsonPath = path.join(tempDir, BUILT_DIR, 'slides.json');
+        // Check slides.json was updated
+        const slidesJsonPath = path.join(tempDir, 'slides.json');
         const slidesJsonContent = await fs.readFile(slidesJsonPath, 'utf-8');
         const slidesJson = JSON.parse(slidesJsonContent);
         assert.strictEqual(slidesJson.slides.length, 1, 'slides.json should have 1 lecture');
@@ -323,7 +323,7 @@ suite('Integration Tests', () => {
         createLectureSync(tempDir, 'lecture-3', 'Third Lecture');
 
         // Update slides.json with all lectures
-        const slidesJsonPath = path.join(tempDir, BUILT_DIR, 'slides.json');
+        const slidesJsonPath = path.join(tempDir, 'slides.json');
         const slidesConfig = {
           slides: [
             { name: 'lecture-1', title: 'First Lecture' },
@@ -365,7 +365,7 @@ suite('Integration Tests', () => {
         createLectureSync(tempDir, 'lecture-3', 'Third Lecture');
 
         // Update slides.json
-        const slidesJsonPath = path.join(tempDir, BUILT_DIR, 'slides.json');
+        const slidesJsonPath = path.join(tempDir, 'slides.json');
         const slidesConfig = {
           slides: [
             { name: 'lecture-1', title: 'First Lecture' },

@@ -413,12 +413,12 @@ interface BuildError {
 |------------|----------|----------|
 | sliman.scanCourse | Scan Course | Сканирует курс и выводит информацию: название курса, список лекций |
 | sliman.createCourse | Create Course | Создаёт новую структуру курса (sliman.json, slides.json, slides/) |
+| sliman.addLecture | Add Lecture | Добавляет новую лекцию с автогенерацией имени папки |
 
 ### Планируемые команды
 
 | ID команды | Название | Статус | Описание |
 |------------|----------|--------|----------|
-| sliman.addLecture | Add Lecture | Stage 3 | Добавляет новую лекцию |
 | sliman.runLecture | Run Lecture | Stage 3 | Запускает лекцию в режиме разработки |
 | sliman.buildLecture | Build Lecture | Stage 3 | Собирает лекцию в статические файлы |
 | sliman.openSlides | Open slides.md | Stage 3 | Открывает файл slides.md текущей лекции |
@@ -444,7 +444,7 @@ interface BuildError {
 | ID команды | Название | Статус | Описание |
 |------------|----------|--------|----------|
 | sliman.createCourse | Create Course | ✅ Готово | Создаёт новую структуру курса |
-| sliman.addLecture | Add Lecture | ⏳ | Добавляет новую лекцию |
+| sliman.addLecture | Add Lecture | ✅ Готово | Добавляет новую лекцию |
 | sliman.runLecture | Run Lecture | ⏳ | Запускает лекцию в режиме разработки |
 | sliman.buildLecture | Build Lecture | ⏳ | Собирает лекцию в статические файлы |
 | sliman.openSlides | Open slides.md | ⏳ | Открывает файл slides.md текущей лекции |
@@ -464,6 +464,23 @@ interface BuildError {
 |-----------|------|--------|
 | createCourse() | src/commands.ts | ✅ Реализовано |
 | Тесты | src/test/suite/commands.test.ts | ✅ 187 тестов |
+
+### Stage 3.3 — Add Lecture Command (Завершено)
+
+| Компонент | Файл | Статус |
+|-----------|------|--------|
+| addLecture() | src/commands.ts | ✅ Реализовано |
+| CourseManager.readSlidesJson() | src/managers/CourseManager.ts | ✅ Исправлен (корень курса) |
+| CourseManager.writeSlidesJson() | src/managers/CourseManager.ts | ✅ Исправлен (корень курса) |
+| Тесты | src/test/suite/*.test.ts | ✅ 187 тестов |
+
+#### Функциональность addLecture:
+- Проверка что пользователь в корне курса
+- Ввод названия лекции с валидацией (3-200 символов)
+- Автогенерация имени папки (транслитерация кириллицы)
+- Подтверждение/редактирование имени папки
+- Создание структуры лекции через LectureManager
+- Логирование в output channel
 
 ### Stage 4 — Tree View (Планируется)
 
