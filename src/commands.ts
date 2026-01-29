@@ -350,41 +350,94 @@ export async function runLecture(name: string): Promise<void> {
 /**
  * Command: sliman.buildLecture
  * Compiles lecture to static HTML
+ * @param name - Lecture folder name (passed from Tree View)
  */
-export async function buildLecture(): Promise<void> {
+export async function buildLecture(name: string): Promise<void> {
   if (!outputChannel) {
     throw new Error('Commands not initialized');
   }
 
+  const channel = outputChannel;
+  channel.appendLine(`Command: buildLecture: ${name}`);
+  channel.show();
+
   const courseManager = managersContainer.courseManager;
-  if (!courseManager) {
-    outputChannel.appendLine('CourseManager not initialized');
-    void vscode.window.showErrorMessage('CourseManager not initialized');
+  const lectureManager = managersContainer.lectureManager;
+  const buildManager = managersContainer.buildManager;
+
+  if (!courseManager || !lectureManager || !buildManager) {
+    channel.appendLine('Managers not initialized');
+    void vscode.window.showErrorMessage('Managers not initialized');
     return;
   }
 
-  outputChannel.appendLine('Command: buildLecture - Not yet implemented');
-  void vscode.window.showInformationMessage('buildLecture: Команда в разработке');
+  // Step 1: Check if we're in a course root
+  const isRoot = await courseManager.isCourseRoot();
+  if (!isRoot) {
+    channel.appendLine('Not in a course root directory');
+    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
+    return;
+  }
+
+  const courseRoot = courseManager.getCourseRoot();
+  channel.appendLine(`Course root: ${courseRoot.fsPath}`);
+
+  // Step 2: Build the lecture
+  channel.appendLine(`Building lecture: ${name}`);
+  try {
+    await buildManager.buildLecture(name);
+    channel.appendLine('Build completed successfully');
+    void vscode.window.showInformationMessage('Build completed');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    channel.appendLine(`Build failed: ${errorMessage}`);
+    void vscode.window.showErrorMessage(`Build failed: ${errorMessage}`);
+  }
 }
 
 /**
  * Command: sliman.openSlides
  * Opens slides.md file for current or selected lecture
+ * @param name - Lecture folder name (passed from Tree View)
  */
-export async function openSlides(): Promise<void> {
+export async function openSlides(name: string): Promise<void> {
   if (!outputChannel) {
     throw new Error('Commands not initialized');
   }
 
+  const channel = outputChannel;
+  channel.appendLine(`Command: openSlides: ${name}`);
+  channel.show();
+
   const courseManager = managersContainer.courseManager;
-  if (!courseManager) {
-    outputChannel.appendLine('CourseManager not initialized');
-    void vscode.window.showErrorMessage('CourseManager not initialized');
+  const lectureManager = managersContainer.lectureManager;
+
+  if (!courseManager || !lectureManager) {
+    channel.appendLine('Managers not initialized');
+    void vscode.window.showErrorMessage('Managers not initialized');
     return;
   }
 
-  outputChannel.appendLine('Command: openSlides - Not yet implemented');
-  void vscode.window.showInformationMessage('openSlides: Команда в разработке');
+  // Step 1: Check if we're in a course root
+  const isRoot = await courseManager.isCourseRoot();
+  if (!isRoot) {
+    channel.appendLine('Not in a course root directory');
+    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
+    return;
+  }
+
+  // Step 2: Get path to slides.md
+  const slidesPath = lectureManager.getLectureSlidesPath(name);
+  channel.appendLine(`Opening: ${slidesPath.fsPath}`);
+
+  // Step 3: Open file in editor
+  try {
+    await vscode.window.showTextDocument(slidesPath);
+    channel.appendLine('File opened successfully');
+  } catch {
+    channel.appendLine(`File not found: ${slidesPath.fsPath}`);
+    void vscode.window.showErrorMessage(`slides.md not found for lecture "${name}"`);
+  }
 }
 
 /**
@@ -396,15 +449,55 @@ export async function buildCourse(): Promise<void> {
     throw new Error('Commands not initialized');
   }
 
+  const channel = outputChannel;
+  channel.appendLine('Command: buildCourse');
+  channel.show();
+
   const courseManager = managersContainer.courseManager;
-  if (!courseManager) {
-    outputChannel.appendLine('CourseManager not initialized');
-    void vscode.window.showErrorMessage('CourseManager not initialized');
+  const buildManager = managersContainer.buildManager;
+
+  if (!courseManager || !buildManager) {
+    channel.appendLine('Managers not initialized');
+    void vscode.window.showErrorMessage('Managers not initialized');
     return;
   }
 
-  outputChannel.appendLine('Command: buildCourse - Not yet implemented');
-  void vscode.window.showInformationMessage('buildCourse: Команда в разработке');
+  // Step 1: Check if we're in a course root
+  const isRoot = await courseManager.isCourseRoot();
+  if (!isRoot) {
+    channel.appendLine('Not in a course root directory');
+    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
+    return;
+  }
+
+  const courseRoot = courseManager.getCourseRoot();
+  channel.appendLine(`Course root: ${courseRoot.fsPath}`);
+
+  // Step 2: Check if there are any lectures
+  channel.appendLine('Getting lecture list...');
+  const lectures = await courseManager.getLectureDirectories();
+  channel.appendLine(`Found ${lectures.length} lectures`);
+
+  if (lectures.length === 0) {
+    channel.appendLine('No lectures found in course');
+    void vscode.window.showWarningMessage('No lectures found in course. Add a lecture first.');
+    return;
+  }
+
+  channel.appendLine('Lectures found:');
+  lectures.forEach((lecture) => channel.appendLine(`  - ${lecture}`));
+
+  // Step 3: Build the course
+  channel.appendLine('Building course...');
+  try {
+    await buildManager.buildCourse();
+    channel.appendLine('Course build completed');
+    void vscode.window.showInformationMessage('Course built successfully');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    channel.appendLine(`Build failed: ${errorMessage}`);
+    void vscode.window.showErrorMessage(`Build failed: ${errorMessage}`);
+  }
 }
 
 /**
@@ -416,13 +509,58 @@ export async function setupPages(): Promise<void> {
     throw new Error('Commands not initialized');
   }
 
+  const channel = outputChannel;
+  channel.appendLine('Command: setupPages');
+  channel.show();
+
   const courseManager = managersContainer.courseManager;
+
   if (!courseManager) {
-    outputChannel.appendLine('CourseManager not initialized');
-    void vscode.window.showErrorMessage('CourseManager not initialized');
+    channel.appendLine('Managers not initialized');
+    void vscode.window.showErrorMessage('Managers not initialized');
     return;
   }
 
-  outputChannel.appendLine('Command: setupPages - Not yet implemented');
-  void vscode.window.showInformationMessage('setupPages: Команда в разработке');
+  // Step 1: Check if we're in a course root
+  const isRoot = await courseManager.isCourseRoot();
+  if (!isRoot) {
+    channel.appendLine('Not in a course root directory');
+    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
+    return;
+  }
+
+  const courseRoot = courseManager.getCourseRoot();
+  channel.appendLine(`Course root: ${courseRoot.fsPath}`);
+
+  // Step 2: Create GitHub Actions workflow
+  channel.appendLine('Setting up GitHub Pages...');
+
+  try {
+    // Create .github/workflows directory
+    const workflowsDir = vscode.Uri.joinPath(courseRoot, '.github', 'workflows');
+    await vscode.workspace.fs.createDirectory(workflowsDir);
+    channel.appendLine('Created .github/workflows directory');
+
+    // Copy static.yml template
+    const templateUri = vscode.Uri.joinPath(
+      vscode.Uri.file(extensionPath),
+      'template',
+      'static.yml'
+    );
+    const staticYmlUri = vscode.Uri.joinPath(workflowsDir, 'static.yml');
+
+    const templateContent = await vscode.workspace.fs.readFile(templateUri);
+    await vscode.workspace.fs.writeFile(staticYmlUri, templateContent);
+    channel.appendLine('Created .github/workflows/static.yml');
+
+    // Show instructions
+    channel.appendLine('GitHub Pages setup complete');
+    void vscode.window.showInformationMessage(
+      'GitHub Pages workflow created! Push to GitHub and enable Pages in repository settings.'
+    );
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    channel.appendLine(`Setup failed: ${errorMessage}`);
+    void vscode.window.showErrorMessage(`Setup failed: ${errorMessage}`);
+  }
 }
