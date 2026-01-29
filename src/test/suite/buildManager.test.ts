@@ -47,7 +47,7 @@ import { CourseManager } from '../../managers/CourseManager';
 import { LectureManager } from '../../managers/LectureManager';
 import type { ICommandExecutor, ProcessResult, ProcessOptions, StreamHandler } from '../../utils/process';
 import { ProcessHelper } from '../../utils/process';
-import { SLIDES_DIR, BUILT_DIR, SLIMAN_FILENAME, SLIDES_FILENAME } from '../../constants';
+import { SLIDES_DIR, BUILT_DIR, SLIDES_FILENAME } from '../../constants';
 import { createTestDir, cleanupTestDir } from '../utils/testWorkspace';
 
 // ============================================
@@ -146,17 +146,14 @@ async function createTestCourse(tempDir: string): Promise<{
   const extensionPath = path.resolve(__dirname, '../../..');
   const lectureManager = new LectureManager(courseManager, extensionPath);
   
-  // Create sliman.json
-  await fs.writeFile(path.join(tempDir, SLIMAN_FILENAME), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');
-  
   // Create slides directory
   await fs.mkdir(path.join(tempDir, SLIDES_DIR), { recursive: true });
   
   // Create built directory
   await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
   
-  // Create slides.json
-  await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ slides: [] }), 'utf-8');
+  // Create dist/slides.json with course_name
+  await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ course_name: 'Test Course', slides: [] }), 'utf-8');
   
   return { courseManager, lectureManager };
 }

@@ -21,7 +21,7 @@ export function initializeCommands(channel: vscode.OutputChannel, extPath: strin
 
 /**
  * Command: sliman.createCourse
- * Creates a new course structure with sliman.json, slides.json, and slides/ directory
+ * Creates a new course structure with dist/slides.json (containing course_name and slides) and slides/ directory
  */
 export async function createCourse(): Promise<void> {
   if (!outputChannel) {
@@ -114,14 +114,8 @@ export async function createCourse(): Promise<void> {
     await fs.mkdir(distDir, { recursive: true });
     channel.appendLine(`Created directory: ${distDir}`);
 
-    // Create sliman.json
-    const slimanContent = JSON.stringify({ course_name: courseName }, null, 2);
-    const slimanPath = path.join(coursePath, 'sliman.json');
-    await fs.writeFile(slimanPath, slimanContent);
-    channel.appendLine(`Created file: ${slimanPath}`);
-
-    // Create dist/slides.json
-    const slidesContent = JSON.stringify({ slides: [] }, null, 2);
+    // Create dist/slides.json with course_name
+    const slidesContent = JSON.stringify({ course_name: courseName, slides: [] }, null, 2);
     const slidesJsonPath = path.join(coursePath, 'dist', 'slides.json');
     await fs.writeFile(slidesJsonPath, slidesContent);
     channel.appendLine(`Created file: ${slidesJsonPath}`);
@@ -175,14 +169,14 @@ export async function scanCourse(): Promise<void> {
   channel.appendLine(`Is course root: ${isRoot}`);
 
   if (isRoot) {
-    const slimanConfig = await courseManager.readSliman();
-    channel.appendLine(`Course name: ${slimanConfig?.course_name ?? 'N/A'}`);
+    const courseName = await courseManager.readCourseName();
+    channel.appendLine(`Course name: ${courseName ?? 'N/A'}`);
 
     const lectures = await courseManager.getLectureDirectories();
     channel.appendLine(`Lectures found: ${lectures.length}`);
     lectures.forEach((name) => channel.appendLine(`  - ${name}`));
   } else {
-    channel.appendLine('Workspace is not a valid course root (sliman.json not found)');
+    channel.appendLine('Workspace is not a valid course root (dist/slides.json not found)');
     void vscode.window.showWarningMessage('Not a valid course root');
   }
 
@@ -216,7 +210,7 @@ export async function addLecture(): Promise<void> {
   const isRoot = await courseManager.isCourseRoot();
   if (!isRoot) {
     channel.appendLine('Not in a course root directory');
-    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
+    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with dist/slides.json');
     return;
   }
 
@@ -333,7 +327,7 @@ export async function runLecture(name: string): Promise<void> {
   const isRoot = await courseManager.isCourseRoot();
   if (!isRoot) {
     channel.appendLine('Not in a course root directory');
-    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
+    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with dist/slides.json');
     return;
   }
 
@@ -396,7 +390,7 @@ export async function buildLecture(name: string): Promise<void> {
   const isRoot = await courseManager.isCourseRoot();
   if (!isRoot) {
     channel.appendLine('Not in a course root directory');
-    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
+    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with dist/slides.json');
     return;
   }
 
@@ -443,7 +437,7 @@ export async function openSlides(name: string): Promise<void> {
   const isRoot = await courseManager.isCourseRoot();
   if (!isRoot) {
     channel.appendLine('Not in a course root directory');
-    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
+    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with dist/slides.json');
     return;
   }
 
@@ -487,7 +481,7 @@ export async function buildCourse(): Promise<void> {
   const isRoot = await courseManager.isCourseRoot();
   if (!isRoot) {
     channel.appendLine('Not in a course root directory');
-    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
+    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with dist/slides.json');
     return;
   }
 
@@ -546,7 +540,7 @@ export async function setupPages(): Promise<void> {
   const isRoot = await courseManager.isCourseRoot();
   if (!isRoot) {
     channel.appendLine('Not in a course root directory');
-    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
+    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with dist/slides.json');
     return;
   }
 

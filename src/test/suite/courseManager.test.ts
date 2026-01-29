@@ -7,7 +7,7 @@ import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { CourseManager } from '../../managers/CourseManager';
-import { SLIDES_DIR, BUILT_DIR, SLIMAN_FILENAME, SLIDES_FILENAME, TEMPLATE_SLIDES } from '../../constants';
+import { SLIDES_DIR, BUILT_DIR, SLIDES_FILENAME, TEMPLATE_SLIDES } from '../../constants';
 import { createTestDir, cleanupTestDir } from '../utils/testWorkspace';
 
 // ============================================
@@ -100,17 +100,18 @@ suite('CourseManager Test Suite', () => {
   });
 
   // ============================================
-  // Task 1.3.2: Sliman.json Operations Tests
+  // Task 1.3.2: Course Name Operations (stored in dist/slides.json)
   // ============================================
 
-  suite('Sliman.json Operations', () => {
+  suite('Course Name Operations (in dist/slides.json)', () => {
     suite('isCourseRoot', () => {
-      test('should return true when sliman.json exists', async () => {
+      test('should return true when dist/slides.json exists', async () => {
         const { manager, tempDir } = await createManagerForTest('isCourseRoot');
         try {
-          // Create sliman.json
+          // Create dist/slides.json
           const fs = await import('fs/promises');
-          await fs.writeFile(path.join(tempDir, SLIMAN_FILENAME), JSON.stringify({ course_name: 'Test' }), 'utf-8');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ course_name: 'Test', slides: [] }), 'utf-8');
 
           const result = await manager.isCourseRoot();
           assert.strictEqual(result, true);
@@ -119,7 +120,7 @@ suite('CourseManager Test Suite', () => {
         }
       });
 
-      test('should return false when sliman.json does not exist', async () => {
+      test('should return false when dist/slides.json does not exist', async () => {
         const { manager, tempDir } = await createManagerForTest('isCourseRoot');
         try {
           const result = await manager.isCourseRoot();
@@ -130,29 +131,30 @@ suite('CourseManager Test Suite', () => {
       });
     });
 
-    suite('readSliman', () => {
-      test('should return SlimanConfig when sliman.json is valid', async () => {
-        const { manager, tempDir } = await createManagerForTest('readSliman');
+    suite('readCourseName', () => {
+      test('should return course name when dist/slides.json is valid', async () => {
+        const { manager, tempDir } = await createManagerForTest('readCourseName');
         try {
           const fs = await import('fs/promises');
-          await fs.writeFile(path.join(tempDir, SLIMAN_FILENAME), JSON.stringify({ course_name: 'My Course' }), 'utf-8');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ course_name: 'My Course', slides: [] }), 'utf-8');
 
-          const result = await manager.readSliman();
+          const result = await manager.readCourseName();
 
-          assert.notStrictEqual(result, null);
-          assert.strictEqual(result?.course_name, 'My Course');
+          assert.strictEqual(result, 'My Course');
         } finally {
           await cleanupTestDir(tempDir);
         }
       });
 
       test('should return null when JSON is invalid', async () => {
-        const { manager, tempDir } = await createManagerForTest('readSliman');
+        const { manager, tempDir } = await createManagerForTest('readCourseName');
         try {
           const fs = await import('fs/promises');
-          await fs.writeFile(path.join(tempDir, SLIMAN_FILENAME), 'invalid json content', 'utf-8');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), 'invalid json content', 'utf-8');
 
-          const result = await manager.readSliman();
+          const result = await manager.readCourseName();
 
           assert.strictEqual(result, null);
         } finally {
@@ -161,12 +163,13 @@ suite('CourseManager Test Suite', () => {
       });
 
       test('should return null when course_name is missing', async () => {
-        const { manager, tempDir } = await createManagerForTest('readSliman');
+        const { manager, tempDir } = await createManagerForTest('readCourseName');
         try {
           const fs = await import('fs/promises');
-          await fs.writeFile(path.join(tempDir, SLIMAN_FILENAME), JSON.stringify({ description: 'No course name' }), 'utf-8');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ slides: [] }), 'utf-8');
 
-          const result = await manager.readSliman();
+          const result = await manager.readCourseName();
 
           assert.strictEqual(result, null);
         } finally {
@@ -175,12 +178,13 @@ suite('CourseManager Test Suite', () => {
       });
 
       test('should return null when course_name is not a string', async () => {
-        const { manager, tempDir } = await createManagerForTest('readSliman');
+        const { manager, tempDir } = await createManagerForTest('readCourseName');
         try {
           const fs = await import('fs/promises');
-          await fs.writeFile(path.join(tempDir, SLIMAN_FILENAME), JSON.stringify({ course_name: 123 }), 'utf-8');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ course_name: 123, slides: [] }), 'utf-8');
 
-          const result = await manager.readSliman();
+          const result = await manager.readCourseName();
 
           assert.strictEqual(result, null);
         } finally {
@@ -189,12 +193,13 @@ suite('CourseManager Test Suite', () => {
       });
 
       test('should return null when course_name is empty string', async () => {
-        const { manager, tempDir } = await createManagerForTest('readSliman');
+        const { manager, tempDir } = await createManagerForTest('readCourseName');
         try {
           const fs = await import('fs/promises');
-          await fs.writeFile(path.join(tempDir, SLIMAN_FILENAME), JSON.stringify({ course_name: '' }), 'utf-8');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ course_name: '', slides: [] }), 'utf-8');
 
-          const result = await manager.readSliman();
+          const result = await manager.readCourseName();
 
           assert.strictEqual(result, null);
         } finally {
@@ -203,12 +208,13 @@ suite('CourseManager Test Suite', () => {
       });
 
       test('should return null when course_name is whitespace only', async () => {
-        const { manager, tempDir } = await createManagerForTest('readSliman');
+        const { manager, tempDir } = await createManagerForTest('readCourseName');
         try {
           const fs = await import('fs/promises');
-          await fs.writeFile(path.join(tempDir, SLIMAN_FILENAME), JSON.stringify({ course_name: '   ' }), 'utf-8');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ course_name: '   ', slides: [] }), 'utf-8');
 
-          const result = await manager.readSliman();
+          const result = await manager.readCourseName();
 
           assert.strictEqual(result, null);
         } finally {
@@ -217,31 +223,31 @@ suite('CourseManager Test Suite', () => {
       });
 
       test('should handle unicode in course_name', async () => {
-        const { manager, tempDir } = await createManagerForTest('readSliman');
+        const { manager, tempDir } = await createManagerForTest('readCourseName');
         try {
           const fs = await import('fs/promises');
-          await fs.writeFile(path.join(tempDir, SLIMAN_FILENAME), JSON.stringify({ course_name: 'Курс Тест 课程' }), 'utf-8');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ course_name: 'Курс Тест 课程', slides: [] }), 'utf-8');
 
-          const result = await manager.readSliman();
+          const result = await manager.readCourseName();
 
-          assert.notStrictEqual(result, null);
-          assert.strictEqual(result?.course_name, 'Курс Тест 课程');
+          assert.strictEqual(result, 'Курс Тест 课程');
         } finally {
           await cleanupTestDir(tempDir);
         }
       });
     });
 
-    suite('writeSliman', () => {
-      test('should write SlimanConfig to sliman.json', async () => {
-        const { manager, tempDir } = await createManagerForTest('writeSliman');
+    suite('writeCourseName', () => {
+      test('should write course name to dist/slides.json', async () => {
+        const { manager, tempDir } = await createManagerForTest('writeCourseName');
         try {
-          const config = { course_name: 'New Course' };
-
-          await manager.writeSliman(config);
-
           const fs = await import('fs/promises');
-          const content = await fs.readFile(path.join(tempDir, SLIMAN_FILENAME), 'utf-8');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+
+          await manager.writeCourseName('New Course');
+
+          const content = await fs.readFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), 'utf-8');
           const parsed = JSON.parse(content);
           assert.strictEqual(parsed.course_name, 'New Course');
         } finally {
@@ -250,19 +256,39 @@ suite('CourseManager Test Suite', () => {
       });
 
       test('should create valid JSON with proper formatting', async () => {
-        const { manager, tempDir } = await createManagerForTest('writeSliman');
+        const { manager, tempDir } = await createManagerForTest('writeCourseName');
         try {
-          const config = { course_name: 'Formatted Course' };
-
-          await manager.writeSliman(config);
-
           const fs = await import('fs/promises');
-          const content = await fs.readFile(path.join(tempDir, SLIMAN_FILENAME), 'utf-8');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+
+          await manager.writeCourseName('Formatted Course');
+
+          const content = await fs.readFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), 'utf-8');
           const parsed = JSON.parse(content);
 
           assert.strictEqual(parsed.course_name, 'Formatted Course');
           // Check that it's pretty-printed (contains newlines)
           assert.ok(content.includes('\n'));
+        } finally {
+          await cleanupTestDir(tempDir);
+        }
+      });
+
+      test('should preserve existing slides array', async () => {
+        const { manager, tempDir } = await createManagerForTest('writeCourseName');
+        try {
+          const fs = await import('fs/promises');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ slides: [{ name: 'lecture-1', title: 'Lecture 1' }] }), 'utf-8');
+
+          await manager.writeCourseName('Updated Course');
+
+          const content = await fs.readFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), 'utf-8');
+          const parsed = JSON.parse(content);
+
+          assert.strictEqual(parsed.course_name, 'Updated Course');
+          assert.strictEqual(parsed.slides.length, 1);
+          assert.strictEqual(parsed.slides[0].name, 'lecture-1');
         } finally {
           await cleanupTestDir(tempDir);
         }
@@ -400,16 +426,14 @@ suite('CourseManager Test Suite', () => {
         const { manager, tempDir } = await createManagerForTest('readCourseData');
         try {
           const fs = await import('fs/promises');
-          // Create sliman.json
-          await fs.writeFile(path.join(tempDir, SLIMAN_FILENAME), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');
-          // Create slides.json in dist directory
+          // Create dist/slides.json with course_name and slides
           await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
-          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ slides: [{ name: 'lecture-1', title: 'Lecture 1' }] }), 'utf-8');
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ course_name: 'Test Course', slides: [{ name: 'lecture-1', title: 'Lecture 1' }] }), 'utf-8');
 
           const result = await manager.readCourseData();
 
           assert.notStrictEqual(result, null);
-          assert.strictEqual(result.config?.course_name, 'Test Course');
+          assert.strictEqual(result.courseName, 'Test Course');
           assert.strictEqual(result.slides?.slides.length, 1);
           assert.strictEqual(result.slides?.slides[0].name, 'lecture-1');
         } finally {
@@ -417,18 +441,18 @@ suite('CourseManager Test Suite', () => {
         }
       });
 
-      test('should return null config when sliman.json is missing', async () => {
+      test('should return null courseName when dist/slides.json has no course_name', async () => {
         const { manager, tempDir } = await createManagerForTest('readCourseData');
         try {
           const fs = await import('fs/promises');
-          // Create only slides.json in dist directory
+          // Create dist/slides.json with only slides array
           await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
           await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ slides: [] }), 'utf-8');
 
           const result = await manager.readCourseData();
 
           assert.notStrictEqual(result, null);
-          assert.strictEqual(result.config, null);
+          assert.strictEqual(result.courseName, null);
           assert.notStrictEqual(result.slides, null);
         } finally {
           await cleanupTestDir(tempDir);
@@ -438,14 +462,12 @@ suite('CourseManager Test Suite', () => {
       test('should return null slides when slides.json is missing', async () => {
         const { manager, tempDir } = await createManagerForTest('readCourseData');
         try {
-          const fs = await import('fs/promises');
-          // Create only sliman.json
-          await fs.writeFile(path.join(tempDir, SLIMAN_FILENAME), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');
+          // Don't create dist/slides.json
 
           const result = await manager.readCourseData();
 
           assert.notStrictEqual(result, null);
-          assert.notStrictEqual(result.config, null);
+          assert.strictEqual(result.courseName, null);
           assert.strictEqual(result.slides, null);
         } finally {
           await cleanupTestDir(tempDir);

@@ -15,7 +15,7 @@ import type { CourseManager } from '../../managers/CourseManager';
 import { CourseExplorer as CourseExplorerClass } from '../../providers/CourseExplorer';
 import { CourseExplorerDataProvider as DataProviderClass } from '../../providers/CourseExplorerDataProvider';
 import { createTestDir, cleanupTestDir } from '../utils/testWorkspace';
-import { SLIMAN_FILENAME, SLIDES_DIR } from '../../constants';
+import { SLIDES_DIR, BUILT_DIR, SLIDES_FILENAME } from '../../constants';
 
 // ============================================
 // Mock CourseManager for Testing
@@ -26,15 +26,15 @@ import { SLIMAN_FILENAME, SLIDES_DIR } from '../../constants';
  * Provides controlled data for tree view testing
  */
 class MockCourseManager implements Partial<CourseManager> {
-  private mockConfig: { course_name: string } | null = null;
+  private mockCourseName: string | null = null;
   private mockSlides: { slides: Array<{ name: string; title: string }> } | null = null;
   private callCount = 0;
 
   /**
    * Configure mock data
    */
-  configure(config: { course_name: string } | null, slides: { slides: Array<{ name: string; title: string }> } | null): void {
-    this.mockConfig = config;
+  configure(courseName: string | null, slides: { slides: Array<{ name: string; title: string }> } | null): void {
+    this.mockCourseName = courseName;
     this.mockSlides = slides;
     this.callCount = 0;
   }
@@ -57,15 +57,15 @@ class MockCourseManager implements Partial<CourseManager> {
    * Check if directory is course root (mock)
    */
   async isCourseRoot(): Promise<boolean> {
-    return this.mockConfig !== null;
+    return this.mockCourseName !== null;
   }
 
   /**
-   * Read sliman.json configuration (mock)
+   * Read course name from dist/slides.json (mock)
    */
-  async readSliman(): Promise<{ course_name: string } | null> {
+  async readCourseName(): Promise<string | null> {
     this.callCount++;
-    return this.mockConfig;
+    return this.mockCourseName;
   }
 
   /**
@@ -119,7 +119,7 @@ suite('CourseExplorer Test Suite', () => {
     // Create mock course manager with default data
     mockCourseManager = new MockCourseManager();
     mockCourseManager.configure(
-      { course_name: 'Test Course' },
+      'Test Course',
       { slides: [
         { name: 'about', title: 'About the Subject' },
         { name: 'mongo', title: 'MongoDB' },
@@ -158,7 +158,7 @@ suite('CourseExplorer Test Suite', () => {
     });
 
     test('should display course name from config', async () => {
-      mockCourseManager.configure({ course_name: 'My Test Course' }, null);
+      mockCourseManager.configure('My Test Course', null);
 
       const dataProvider = new DataProviderClass(mockCourseManager as unknown as CourseManager);
       const rootItems = await dataProvider.getChildren();
@@ -199,7 +199,7 @@ suite('CourseExplorer Test Suite', () => {
     });
 
     test('should handle empty lectures list', async () => {
-      mockCourseManager.configure({ course_name: 'Empty Course' }, { slides: [] });
+      mockCourseManager.configure('Empty Course', { slides: [] });
 
       const dataProvider = new DataProviderClass(mockCourseManager as unknown as CourseManager);
       const rootItems = await dataProvider.getChildren();
@@ -391,17 +391,19 @@ suite('CourseExplorer Test Suite', () => {
       const tempDir = await createTestDir('explorer', 'integration');
       try {
         // Create course structure
-        const slimanPath = path.join(tempDir, SLIMAN_FILENAME);
         const slidesDir = path.join(tempDir, SLIDES_DIR);
+        const distDir = path.join(tempDir, BUILT_DIR);
+        const slidesJsonPath = path.join(distDir, SLIDES_FILENAME);
         
-        await fs.writeFile(slimanPath, JSON.stringify({ course_name: 'Integration Test Course' }), 'utf-8');
         await fs.mkdir(slidesDir, { recursive: true });
+        await fs.mkdir(distDir, { recursive: true });
+        await fs.writeFile(slidesJsonPath, JSON.stringify({ course_name: 'Integration Test Course', slides: [] }), 'utf-8');
 
         // Verify structure exists
         const stats = await fs.stat(slidesDir);
         assert.ok(stats.isDirectory(), 'Slides directory should exist');
         
-        const configContent = await fs.readFile(slimanPath, 'utf-8');
+        const configContent = await fs.readFile(slidesJsonPath, 'utf-8');
         const config = JSON.parse(configContent);
         assert.strictEqual(config.course_name, 'Integration Test Course', 'Config should match');
       } finally {

@@ -6,16 +6,15 @@ import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import {
-  SLIMAN_FILENAME,
   SLIDES_FILENAME,
   SLIDES_DIR,
   BUILT_DIR,
   TEMPLATE_SLIDES,
 } from '../constants';
-import type { SlimanConfig, SlidesConfig, LectureInfo, CourseData } from '../types';
+import type { SlidesConfig, LectureInfo, CourseData } from '../types';
 
 /**
- * Course Manager handles course configuration files (sliman.json, slides.json)
+ * Course Manager handles course configuration (dist/slides.json with course_name and slides array)
  * and provides URI helpers for project structure navigation.
  */
 export class CourseManager {
@@ -71,18 +70,18 @@ export class CourseManager {
   }
 
   // ============================================
-  // Task 1.3.2: Sliman.json Operations
+  // Course Name Operations (stored in dist/slides.json)
   // ============================================
 
   /**
    * Checks if the current workspace is a valid course root
-   * (sliman.json exists in the root)
+   * (dist/slides.json exists in the workspace)
    * @returns Promise that resolves to true if valid course root
    */
   async isCourseRoot(): Promise<boolean> {
-    const slimanPath = path.join(this.workspaceUri.fsPath, SLIMAN_FILENAME);
+    const slidesJsonPath = path.join(this.workspaceUri.fsPath, BUILT_DIR, SLIDES_FILENAME);
     try {
-      await fs.access(slimanPath);
+      await fs.access(slidesJsonPath);
       return true;
     } catch {
       return false;
@@ -90,48 +89,48 @@ export class CourseManager {
   }
 
   /**
-   * Reads the course configuration from sliman.json
-   * @returns Promise that resolves to SlimanConfig or null if not found/invalid
+   * Reads the course name from dist/slides.json
+   * @returns Promise that resolves to course name string or null if not found
    */
-  async readSliman(): Promise<SlimanConfig | null> {
-    const slimanUri = vscode.Uri.joinPath(this.workspaceUri, SLIMAN_FILENAME);
-    try {
-      const content = new TextDecoder().decode(
-        await vscode.workspace.fs.readFile(slimanUri)
-      );
-      const parsed = JSON.parse(content);
-
-      // Validate structure: must have course_name as non-empty string
-      if (typeof parsed?.course_name !== 'string' || parsed.course_name.trim() === '') {
-        console.error(`Invalid ${SLIMAN_FILENAME}: missing or invalid 'course_name' field`);
-        return null;
-      }
-
-      return parsed as SlimanConfig;
-    } catch (error) {
-      console.error(`Failed to read ${SLIMAN_FILENAME}:`, error);
+  async readCourseName(): Promise<string | null> {
+    const slidesConfig = await this.readSlidesJson();
+    if (!slidesConfig?.course_name || typeof slidesConfig.course_name !== 'string' || slidesConfig.course_name.trim() === '') {
       return null;
     }
+    return slidesConfig.course_name;
   }
 
   /**
-   * Writes the course configuration to sliman.json
-   * @param config - The SlimanConfig to write
+   * Writes the course name to dist/slides.json
+   * @param name - The course name to write
    * @returns Promise that resolves when complete
    */
-  async writeSliman(config: SlimanConfig): Promise<void> {
-    const slimanUri = vscode.Uri.joinPath(this.workspaceUri, SLIMAN_FILENAME);
+  async writeCourseName(name: string): Promise<void> {
+    const slidesJsonUri = vscode.Uri.joinPath(this.getBuiltCourseDir(), SLIDES_FILENAME);
     try {
+      // Read existing config
+      let config: SlidesConfig = { slides: [] };
+      try {
+        const content = new TextDecoder().decode(
+          await vscode.workspace.fs.readFile(slidesJsonUri)
+        );
+        config = JSON.parse(content);
+      } catch {
+        // File doesn't exist or is invalid, start with empty config
+      }
+
+      // Update course_name and write back
+      config.course_name = name;
       const content = JSON.stringify(config, null, 2);
-      await vscode.workspace.fs.writeFile(slimanUri, new TextEncoder().encode(content));
+      await vscode.workspace.fs.writeFile(slidesJsonUri, new TextEncoder().encode(content));
     } catch (error) {
-      console.error(`Failed to write ${SLIMAN_FILENAME}:`, error);
+      console.error(`Failed to write course name:`, error);
       throw error;
     }
   }
 
   // ============================================
-  // Task 1.3.3: Slides.json Operations
+  // Slides.json Operations (stored in dist/ directory)
   // ============================================
 
   /**
@@ -159,13 +158,35 @@ export class CourseManager {
 
   /**
    * Writes the slides configuration to slides.json (in dist/ directory)
+   * Preserves course_name if it exists
    * @param config - The SlidesConfig to write
    * @returns Promise that resolves when complete
    */
   async writeSlidesJson(config: SlidesConfig): Promise<void> {
     const slidesJsonUri = vscode.Uri.joinPath(this.getBuiltCourseDir(), SLIDES_FILENAME);
     try {
-      const content = JSON.stringify(config, null, 2);
+      // Preserve course_name if it exists
+      let existingConfig: SlidesConfig = { slides: [] };
+      try {
+        const existingContent = new TextDecoder().decode(
+          await vscode.workspace.fs.readFile(slidesJsonUri)
+        );
+        const parsed = JSON.parse(existingContent);
+        if (parsed.course_name) {
+          existingConfig.course_name = parsed.course_name;
+        }
+      } catch {
+        // File doesn't exist, use default
+      }
+
+      // Merge config
+      const mergedConfig: SlidesConfig = {
+        ...existingConfig,
+        ...config,
+        slides: config.slides ?? existingConfig.slides,
+      };
+
+      const content = JSON.stringify(mergedConfig, null, 2);
       await vscode.workspace.fs.writeFile(slidesJsonUri, new TextEncoder().encode(content));
     } catch (error) {
       console.error(`Failed to write ${SLIDES_FILENAME}:`, error);
@@ -194,16 +215,16 @@ export class CourseManager {
   }
 
   /**
-   * Reads both course configuration files at once
+   * Reads both course configuration at once
    * Useful for displaying course overview information
-   * @returns Promise that resolves to CourseData with both config and slides
+   * @returns Promise that resolves to CourseData with courseName and slides
    */
   async readCourseData(): Promise<CourseData> {
-    const [config, slides] = await Promise.all([
-      this.readSliman(),
+    const [courseName, slides] = await Promise.all([
+      this.readCourseName(),
       this.readSlidesJson(),
     ]);
-    return { config, slides };
+    return { courseName, slides };
   }
 
   // ============================================

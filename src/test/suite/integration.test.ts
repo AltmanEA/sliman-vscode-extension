@@ -17,7 +17,7 @@ import { CourseManager } from '../../managers/CourseManager';
 import { LectureManager } from '../../managers/LectureManager';
 import { ProcessHelper } from '../../utils/process';
 import type { ICommandExecutor, ProcessResult, ProcessOptions, StreamHandler } from '../../utils/process';
-import { SLIDES_DIR, BUILT_DIR, SLIMAN_FILENAME, SLIDES_FILENAME, TEMPLATE_DIR, TEMPLATE_SLIDES, TEMPLATE_PACKAGE } from '../../constants';
+import { SLIDES_DIR, BUILT_DIR, SLIDES_FILENAME, TEMPLATE_DIR, TEMPLATE_SLIDES, TEMPLATE_PACKAGE } from '../../constants';
 
 // ============================================
 // Mock Executor for Testing
@@ -155,23 +155,16 @@ async function createTestCourse(tempDir: string): Promise<{
   const extensionPath = path.resolve(__dirname, '../../..');
   const lectureManager = new LectureManager(courseManager, extensionPath);
 
-  // Create sliman.json
-  await fs.writeFile(
-    path.join(tempDir, SLIMAN_FILENAME),
-    JSON.stringify({ course_name: 'Test Course' }, null, 2),
-    'utf-8'
-  );
-
   // Create slides directory
   await fs.mkdir(path.join(tempDir, SLIDES_DIR), { recursive: true });
 
   // Create built (dist) directory
   await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
 
-  // Create slides.json in dist directory
+  // Create dist/slides.json with course_name
   await fs.writeFile(
     path.join(tempDir, BUILT_DIR, SLIDES_FILENAME),
-    JSON.stringify({ slides: [] }, null, 2),
+    JSON.stringify({ course_name: 'Test Course', slides: [] }, null, 2),
     'utf-8'
   );
 
@@ -210,13 +203,8 @@ function createTestCourseSync(tempDir: string): void {
   fsSync.mkdirSync(path.join(tempDir, SLIDES_DIR), { recursive: true });
   fsSync.mkdirSync(path.join(tempDir, BUILT_DIR), { recursive: true });
   fsSync.writeFileSync(
-    path.join(tempDir, SLIMAN_FILENAME),
-    JSON.stringify({ course_name: 'Test Course' }, null, 2),
-    'utf-8'
-  );
-  fsSync.writeFileSync(
     path.join(tempDir, BUILT_DIR, SLIDES_FILENAME),
-    JSON.stringify({ slides: [] }, null, 2),
+    JSON.stringify({ course_name: 'Test Course', slides: [] }, null, 2),
     'utf-8'
   );
 }
@@ -429,7 +417,8 @@ suite('Integration Tests', () => {
         if (error) {
           assert.ok(
             error.message.includes('Not a valid course root') ||
-            error.message.includes('sliman.json') ||
+            error.message.includes('dist/slides.json') ||
+            error.message.includes('slides.json') ||
             error.message.includes('course'),
             'Error should mention course structure'
           );

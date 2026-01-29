@@ -181,8 +181,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
    * @returns Always returns valid CourseTreeItem
    */
   private async buildRootItem(): Promise<CourseTreeItem> {
-    const config = await this.courseManager.readSliman();
-    const courseName = config?.course_name ?? 'No Course';
+    const courseName = await this.courseManager.readCourseName() ?? 'No Course';
 
     return {
       id: 'course-root',

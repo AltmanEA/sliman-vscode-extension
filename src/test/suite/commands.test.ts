@@ -338,18 +338,15 @@ suite('Commands Module', () => {
         await createCourse(); // Should not throw
 
         // Verify course files were created
-        const slimanPath = path.join(tempDir, 'sliman.json');
         const slidesJsonPath = path.join(tempDir, 'dist', 'slides.json');
         const indexPath = path.join(tempDir, 'dist', 'index.html');
         const slidesDir = path.join(tempDir, 'slides');
 
-        const slimanExists = await fs.stat(slimanPath).then(() => true).catch(() => false);
         const slidesJsonExists = await fs.stat(slidesJsonPath).then(() => true).catch(() => false);
         const indexExists = await fs.stat(indexPath).then(() => true).catch(() => false);
         const slidesDirExists = await fs.stat(slidesDir).then(() => true).catch(() => false);
 
-        assert.strictEqual(slimanExists, true, 'sliman.json should be created');
-        assert.strictEqual(slidesJsonExists, true, 'slides.json should be created in dist/');
+        assert.strictEqual(slidesJsonExists, true, 'dist/slides.json should be created');
         assert.strictEqual(indexExists, true, 'index.html should be created in dist/');
         assert.strictEqual(slidesDirExists, true, 'slides/ directory should be created');
       } finally {
@@ -372,11 +369,11 @@ suite('Commands Module', () => {
     });
 
     test('addLecture should not throw', async () => {
-      // Create temporary directory with course structure (sliman.json)
+      // Create temporary directory with course structure (dist/slides.json)
       const tempDir = await createTestDir('commands', 'addLecture');
       await fs.mkdir(tempDir, { recursive: true });
-      await fs.writeFile(path.join(tempDir, 'sliman.json'), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');
-      await fs.writeFile(path.join(tempDir, 'slides.json'), JSON.stringify({ slides: [] }), 'utf-8');
+      await fs.mkdir(path.join(tempDir, 'dist'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'dist', 'slides.json'), JSON.stringify({ course_name: 'Test Course', slides: [] }), 'utf-8');
       await fs.mkdir(path.join(tempDir, 'slides'), { recursive: true });
       await fs.mkdir(path.join(tempDir, 'template'), { recursive: true });
       await fs.writeFile(path.join(tempDir, 'template', 'slides.md'), '---\ntitle: {{TITLE}}\n---\n', 'utf-8');
@@ -441,8 +438,8 @@ suite('Commands Module', () => {
       // Create temporary directory with course structure
       const tempDir = await createTestDir('commands', 'runLecture');
       await fs.mkdir(path.join(tempDir, 'slides'), { recursive: true });
-      await fs.writeFile(path.join(tempDir, 'sliman.json'), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');
-      await fs.writeFile(path.join(tempDir, 'slides.json'), JSON.stringify({ slides: [] }), 'utf-8');
+      await fs.mkdir(path.join(tempDir, 'dist'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'dist', 'slides.json'), JSON.stringify({ course_name: 'Test Course', slides: [] }), 'utf-8');
       await fs.mkdir(path.join(tempDir, 'slides', 'test-lecture'), { recursive: true });
 
       // Initialize with mock channel
@@ -502,8 +499,8 @@ suite('Commands Module', () => {
       // Create temporary directory with course structure
       const tempDir = await createTestDir('commands', 'buildLecture');
       await fs.mkdir(path.join(tempDir, 'slides'), { recursive: true });
-      await fs.writeFile(path.join(tempDir, 'sliman.json'), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');
-      await fs.writeFile(path.join(tempDir, 'slides.json'), JSON.stringify({ slides: [] }), 'utf-8');
+      await fs.mkdir(path.join(tempDir, 'dist'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'dist', 'slides.json'), JSON.stringify({ course_name: 'Test Course', slides: [] }), 'utf-8');
       await fs.mkdir(path.join(tempDir, 'slides', 'test-lecture'), { recursive: true });
 
       // Initialize with mock channel
@@ -558,8 +555,8 @@ suite('Commands Module', () => {
       // Create temporary directory with course structure
       const tempDir = await createTestDir('commands', 'openSlides');
       await fs.mkdir(path.join(tempDir, 'slides'), { recursive: true });
-      await fs.writeFile(path.join(tempDir, 'sliman.json'), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');
-      await fs.writeFile(path.join(tempDir, 'slides.json'), JSON.stringify({ slides: [] }), 'utf-8');
+      await fs.mkdir(path.join(tempDir, 'dist'), { recursive: true });
+      await fs.writeFile(path.join(tempDir, 'dist', 'slides.json'), JSON.stringify({ course_name: 'Test Course', slides: [] }), 'utf-8');
       await fs.mkdir(path.join(tempDir, 'slides', 'test-lecture'), { recursive: true });
       await fs.writeFile(path.join(tempDir, 'slides', 'test-lecture', 'slides.md'), '# Test Slides\n', 'utf-8');
 

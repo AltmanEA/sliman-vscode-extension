@@ -11,13 +11,6 @@ export type {
 } from './courseExplorer';
 
 /**
- * Course configuration stored in sliman.json
- */
-export interface SlimanConfig {
-  course_name: string;
-}
-
-/**
  * Individual lecture information
  */
 export interface LectureInfo {
@@ -26,17 +19,20 @@ export interface LectureInfo {
 }
 
 /**
- * Slides configuration stored in slides.json
+ * Course configuration stored in dist/slides.json
+ * Contains course_name and slides array
  */
 export interface SlidesConfig {
+  course_name?: string;
   slides: LectureInfo[];
 }
 
 /**
  * Combined course data for display purposes
+ * course_name is now read from slides.config (dist/slides.json)
  */
 export interface CourseData {
-  config: SlimanConfig | null;
+  courseName: string | null;
   slides: SlidesConfig | null;
 }
 

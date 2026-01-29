@@ -261,7 +261,7 @@ suite('Extension Registration', () => {
 
     test('should handle workspace without course root gracefully', async () => {
       // This test verifies error handling when workspace is not a course root
-      // Create a temporary workspace without sliman.json
+      // Create a temporary workspace without dist/slides.json
       const tempDir = await createTestDir('extension', 'non-course-workspace');
       try {
         const extension = vscode.extensions.getExtension(EXTENSION_ID);
