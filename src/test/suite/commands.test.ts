@@ -339,8 +339,8 @@ suite('Commands Module', () => {
 
         // Verify course files were created
         const slimanPath = path.join(tempDir, 'sliman.json');
-        const slidesJsonPath = path.join(tempDir, 'slides.json');
-        const indexPath = path.join(tempDir, 'index.html');
+        const slidesJsonPath = path.join(tempDir, 'dist', 'slides.json');
+        const indexPath = path.join(tempDir, 'dist', 'index.html');
         const slidesDir = path.join(tempDir, 'slides');
 
         const slimanExists = await fs.stat(slimanPath).then(() => true).catch(() => false);
@@ -349,8 +349,8 @@ suite('Commands Module', () => {
         const slidesDirExists = await fs.stat(slidesDir).then(() => true).catch(() => false);
 
         assert.strictEqual(slimanExists, true, 'sliman.json should be created');
-        assert.strictEqual(slidesJsonExists, true, 'slides.json should be created');
-        assert.strictEqual(indexExists, true, 'index.html should be created');
+        assert.strictEqual(slidesJsonExists, true, 'slides.json should be created in dist/');
+        assert.strictEqual(indexExists, true, 'index.html should be created in dist/');
         assert.strictEqual(slidesDirExists, true, 'slides/ directory should be created');
       } finally {
         // Restore original functions

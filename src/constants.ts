@@ -21,7 +21,7 @@ export const SLIDES_DIR = 'slides';
 export const TEMPLATE_DIR = 'template';
 
 /** Built course output directory */
-export const BUILT_DIR = 'built';
+export const BUILT_DIR = 'dist';
 
 /** Template filenames */
 export const TEMPLATE_SLIDES = 'slides.md';

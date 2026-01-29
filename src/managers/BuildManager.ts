@@ -11,6 +11,7 @@
  */
 
 import * as vscode from 'vscode';
+import * as fs from 'fs/promises';
 import type { CourseManager } from './CourseManager';
 import type { LectureManager } from './LectureManager';
 import { ProcessHelper } from '../utils/process';
@@ -289,11 +290,11 @@ export class BuildManager {
 
       this.appendLine('✓ Presentation built');
 
-      // Copy to built directory
+      // Copy to dist directory
       this.appendProgress({ lecture: name, stage: 'copying' });
-      this.appendLine('Copying to built/...');
+      this.appendLine('Copying to dist/...');
 
-      // TODO: Implement copy logic if needed
+      await this.copyLectureToDist(name, lecturePath);
 
       this.appendProgress({ lecture: name, stage: 'complete' });
       this.appendLine('✓ Complete!');
@@ -309,6 +310,58 @@ export class BuildManager {
    */
   private appendProgress(progress: BuildProgress): void {
     this.showProgress(progress);
+  }
+
+  /**
+   * Copies built lecture files to dist/{name}/ directory
+   * @param lectureName - Lecture folder name
+   * @param sourcePath - Source directory with built files
+   * @returns Promise resolving when copy completes
+   */
+  private async copyLectureToDist(lectureName: string, sourcePath: string): Promise<void> {
+    const distDir = this.courseManager.getBuiltCourseDir();
+    const destDir = vscode.Uri.joinPath(distDir, lectureName);
+
+    // Create destination directory
+    await vscode.workspace.fs.createDirectory(destDir);
+
+    // Read source directory and copy all files
+    const entries = await fs.readdir(sourcePath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.isDirectory() && entry.name !== 'node_modules') {
+        const srcUri = vscode.Uri.joinPath(vscode.Uri.file(sourcePath), entry.name);
+        const destUri = vscode.Uri.joinPath(destDir, entry.name);
+        await this.copyDirectory(srcUri, destUri);
+      } else if (entry.isFile()) {
+        const srcUri = vscode.Uri.joinPath(vscode.Uri.file(sourcePath), entry.name);
+        const destUri = vscode.Uri.joinPath(destDir, entry.name);
+        await vscode.workspace.fs.copy(srcUri, destUri);
+      }
+    }
+
+    this.appendLine(`Copied to: ${destDir.fsPath}`);
+  }
+
+  /**
+   * Recursively copies directory contents
+   * @param src - Source URI
+   * @param dest - Destination URI
+   */
+  private async copyDirectory(src: vscode.Uri, dest: vscode.Uri): Promise<void> {
+    await vscode.workspace.fs.createDirectory(dest);
+    const entries = await vscode.workspace.fs.readDirectory(src);
+
+    for (const [name, type] of entries) {
+      const srcChild = vscode.Uri.joinPath(src, name);
+      const destChild = vscode.Uri.joinPath(dest, name);
+
+      if (type === vscode.FileType.Directory) {
+        await this.copyDirectory(srcChild, destChild);
+      } else {
+        await vscode.workspace.fs.copy(srcChild, destChild);
+      }
+    }
   }
 
   /**
@@ -362,6 +415,10 @@ export class BuildManager {
         }
 
         this.appendLine(`✓ Lecture "${lectureName}" built`);
+
+        // Copy to dist directory
+        this.appendLine(`Copying "${lectureName}" to dist/...`);
+        await this.copyLectureToDist(lectureName, lecturePath);
       }
 
       this.appendLine('✓ Course build completed successfully');

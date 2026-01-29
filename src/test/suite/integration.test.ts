@@ -165,12 +165,12 @@ async function createTestCourse(tempDir: string): Promise<{
   // Create slides directory
   await fs.mkdir(path.join(tempDir, SLIDES_DIR), { recursive: true });
 
-  // Create built directory
+  // Create built (dist) directory
   await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
 
-  // Create slides.json in course root
+  // Create slides.json in dist directory
   await fs.writeFile(
-    path.join(tempDir, SLIDES_FILENAME),
+    path.join(tempDir, BUILT_DIR, SLIDES_FILENAME),
     JSON.stringify({ slides: [] }, null, 2),
     'utf-8'
   );
@@ -300,8 +300,8 @@ suite('Integration Tests', () => {
         const packageContent = await fs.readFile(packagePath, 'utf-8');
         assert.ok(packageContent.includes('"name": "test-lecture"'), 'package.json should have correct name');
 
-        // Check slides.json was updated
-        const slidesJsonPath = path.join(tempDir, 'slides.json');
+        // Check slides.json was updated (in dist/)
+        const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
         const slidesJsonContent = await fs.readFile(slidesJsonPath, 'utf-8');
         const slidesJson = JSON.parse(slidesJsonContent);
         assert.strictEqual(slidesJson.slides.length, 1, 'slides.json should have 1 lecture');
@@ -323,8 +323,8 @@ suite('Integration Tests', () => {
         createLectureSync(tempDir, 'lecture-2', 'Second Lecture');
         createLectureSync(tempDir, 'lecture-3', 'Third Lecture');
 
-        // Update slides.json with all lectures
-        const slidesJsonPath = path.join(tempDir, 'slides.json');
+        // Update slides.json with all lectures (in dist/)
+        const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
         const slidesConfig = {
           slides: [
             { name: 'lecture-1', title: 'First Lecture' },
@@ -365,8 +365,8 @@ suite('Integration Tests', () => {
         createLectureSync(tempDir, 'lecture-2', 'Second Lecture');
         createLectureSync(tempDir, 'lecture-3', 'Third Lecture');
 
-        // Update slides.json
-        const slidesJsonPath = path.join(tempDir, 'slides.json');
+        // Update slides.json (in dist/)
+        const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
         const slidesConfig = {
           slides: [
             { name: 'lecture-1', title: 'First Lecture' },

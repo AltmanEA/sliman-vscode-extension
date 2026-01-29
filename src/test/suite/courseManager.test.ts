@@ -280,8 +280,9 @@ suite('CourseManager Test Suite', () => {
         const { manager, tempDir } = await createManagerForTest('readSlidesJson');
         try {
           const fs = await import('fs/promises');
-          // Create slides.json in course root
-          await fs.writeFile(path.join(tempDir, SLIDES_FILENAME), JSON.stringify({ slides: [{ name: 'lecture-1', title: 'Lecture 1' }] }), 'utf-8');
+          // Create slides.json in dist directory
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ slides: [{ name: 'lecture-1', title: 'Lecture 1' }] }), 'utf-8');
 
           const result = await manager.readSlidesJson();
 
@@ -298,7 +299,8 @@ suite('CourseManager Test Suite', () => {
         const { manager, tempDir } = await createManagerForTest('readSlidesJson');
         try {
           const fs = await import('fs/promises');
-          await fs.writeFile(path.join(tempDir, SLIDES_FILENAME), 'invalid json content', 'utf-8');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), 'invalid json content', 'utf-8');
 
           const result = await manager.readSlidesJson();
 
@@ -325,7 +327,8 @@ suite('CourseManager Test Suite', () => {
         const { manager, tempDir } = await createManagerForTest('readSlidesJson');
         try {
           const fs = await import('fs/promises');
-          await fs.writeFile(path.join(tempDir, SLIDES_FILENAME), JSON.stringify({ description: 'No slides field' }), 'utf-8');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ description: 'No slides field' }), 'utf-8');
 
           const result = await manager.readSlidesJson();
 
@@ -339,8 +342,9 @@ suite('CourseManager Test Suite', () => {
         const { manager, tempDir } = await createManagerForTest('readSlidesJson');
         try {
           const fs = await import('fs/promises');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
           // slides is a string, not an array
-          await fs.writeFile(path.join(tempDir, SLIDES_FILENAME), JSON.stringify({ slides: 'not an array' }), 'utf-8');
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ slides: 'not an array' }), 'utf-8');
 
           const result = await manager.readSlidesJson();
 
@@ -352,7 +356,7 @@ suite('CourseManager Test Suite', () => {
     });
 
     suite('writeSlidesJson', () => {
-      test('should write SlidesConfig to slides.json', async () => {
+      test('should write SlidesConfig to slides.json in dist/', async () => {
         const { manager, tempDir } = await createManagerForTest('writeSlidesJson');
         try {
           const config = { slides: [{ name: 'lecture-1', title: 'First Lecture' }] };
@@ -360,7 +364,7 @@ suite('CourseManager Test Suite', () => {
           await manager.writeSlidesJson(config);
 
           const fs = await import('fs/promises');
-          const content = await fs.readFile(path.join(tempDir, SLIDES_FILENAME), 'utf-8');
+          const content = await fs.readFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), 'utf-8');
           const parsed = JSON.parse(content);
 
           assert.strictEqual(parsed.slides.length, 1);
@@ -379,7 +383,7 @@ suite('CourseManager Test Suite', () => {
           await manager.writeSlidesJson(config);
 
           const fs = await import('fs/promises');
-          const content = await fs.readFile(path.join(tempDir, SLIDES_FILENAME), 'utf-8');
+          const content = await fs.readFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), 'utf-8');
           const parsed = JSON.parse(content);
 
           assert.strictEqual(parsed.slides[0].title, 'Formatted Lecture');
@@ -398,8 +402,9 @@ suite('CourseManager Test Suite', () => {
           const fs = await import('fs/promises');
           // Create sliman.json
           await fs.writeFile(path.join(tempDir, SLIMAN_FILENAME), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');
-          // Create slides.json in course root
-          await fs.writeFile(path.join(tempDir, SLIDES_FILENAME), JSON.stringify({ slides: [{ name: 'lecture-1', title: 'Lecture 1' }] }), 'utf-8');
+          // Create slides.json in dist directory
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ slides: [{ name: 'lecture-1', title: 'Lecture 1' }] }), 'utf-8');
 
           const result = await manager.readCourseData();
 
@@ -416,8 +421,9 @@ suite('CourseManager Test Suite', () => {
         const { manager, tempDir } = await createManagerForTest('readCourseData');
         try {
           const fs = await import('fs/promises');
-          // Create only slides.json in course root
-          await fs.writeFile(path.join(tempDir, SLIDES_FILENAME), JSON.stringify({ slides: [] }), 'utf-8');
+          // Create only slides.json in dist directory
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ slides: [] }), 'utf-8');
 
           const result = await manager.readCourseData();
 
@@ -448,13 +454,13 @@ suite('CourseManager Test Suite', () => {
     });
 
     suite('addLecture', () => {
-      test('should add new lecture to slides.json', async () => {
+      test('should add new lecture to slides.json in dist/', async () => {
         const { manager, tempDir } = await createManagerForTest('addLecture');
         try {
           await manager.addLecture('lecture-1', 'Introduction');
 
           const fs = await import('fs/promises');
-          const content = await fs.readFile(path.join(tempDir, SLIDES_FILENAME), 'utf-8');
+          const content = await fs.readFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), 'utf-8');
           const parsed = JSON.parse(content);
 
           assert.strictEqual(parsed.slides.length, 1);
@@ -469,8 +475,9 @@ suite('CourseManager Test Suite', () => {
         const { manager, tempDir } = await createManagerForTest('addLecture');
         try {
           const fs = await import('fs/promises');
-          // Create initial slides.json with one lecture
-          const slidesJsonPath = path.join(tempDir, SLIDES_FILENAME);
+          // Create initial slides.json in dist with one lecture
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
           await fs.writeFile(slidesJsonPath, JSON.stringify({ slides: [{ name: 'lecture-1', title: 'Old Title' }] }), 'utf-8');
 
           // Update the lecture
@@ -490,12 +497,13 @@ suite('CourseManager Test Suite', () => {
         const { manager, tempDir } = await createManagerForTest('addLecture');
         try {
           const fs = await import('fs/promises');
-          await fs.writeFile(path.join(tempDir, SLIDES_FILENAME), JSON.stringify({ slides: [] }), 'utf-8');
+          await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
+          await fs.writeFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), JSON.stringify({ slides: [] }), 'utf-8');
 
           await manager.addLecture('lecture-1', 'First Lecture');
           await manager.addLecture('lecture-2', 'Second Lecture');
 
-          const content = await fs.readFile(path.join(tempDir, SLIDES_FILENAME), 'utf-8');
+          const content = await fs.readFile(path.join(tempDir, BUILT_DIR, SLIDES_FILENAME), 'utf-8');
           const parsed = JSON.parse(content);
 
           assert.strictEqual(parsed.slides.length, 2);

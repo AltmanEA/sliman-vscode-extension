@@ -109,21 +109,26 @@ export async function createCourse(): Promise<void> {
     await fs.mkdir(slidesDir, { recursive: true });
     channel.appendLine(`Created directory: ${slidesDir}`);
 
+    // Create dist/ directory
+    const distDir = path.join(coursePath, 'dist');
+    await fs.mkdir(distDir, { recursive: true });
+    channel.appendLine(`Created directory: ${distDir}`);
+
     // Create sliman.json
     const slimanContent = JSON.stringify({ course_name: courseName }, null, 2);
     const slimanPath = path.join(coursePath, 'sliman.json');
     await fs.writeFile(slimanPath, slimanContent);
     channel.appendLine(`Created file: ${slimanPath}`);
 
-    // Create slides.json
+    // Create dist/slides.json
     const slidesContent = JSON.stringify({ slides: [] }, null, 2);
-    const slidesJsonPath = path.join(coursePath, 'slides.json');
+    const slidesJsonPath = path.join(coursePath, 'dist', 'slides.json');
     await fs.writeFile(slidesJsonPath, slidesContent);
     channel.appendLine(`Created file: ${slidesJsonPath}`);
 
-    // Copy index.html template
+    // Copy index.html template to dist/
     const templateIndexPath = path.join(extensionPath, 'template', 'index.html');
-    const indexDestPath = path.join(coursePath, 'index.html');
+    const indexDestPath = path.join(coursePath, 'dist', 'index.html');
 
     try {
       let indexContent = await fs.readFile(templateIndexPath, 'utf-8');
