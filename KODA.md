@@ -8,7 +8,7 @@
 
 ### Текущий статус разработки
 
-Проект находится на **Stage 2** — этапе разработки модулей лекций и сборки. Реализованы:
+Проект находится на **Stage 4** — этапе разработки Tree View. Реализованы:
 
 **Stage 1 (Завершён):**
 - Базовые типы данных (SlimanConfig, LectureInfo, SlidesConfig, CourseData)
@@ -22,6 +22,19 @@
 - BuildManager — сборка лекций и курса, real-time output, progress bar
 - ManagersContainer — обновлён для включения всех менеджеров
 - Тесты: LectureManager (40+), ProcessHelper (25+), BuildManager (10+)
+
+**Stage 3 (Завершён):**
+- src/commands.ts — регистрация и реализация всех команд
+- src/test/suite/commands.test.ts — тесты команд (187+ тестов)
+- createCourse, addLecture, scanCourse, runLecture, buildLecture, openSlides, buildCourse, setupPages
+
+**Stage 4 (Завершён):**
+- src/providers/CourseExplorer.ts — Tree View менеджер
+- src/providers/CourseExplorerDataProvider.ts — провайдер данных для Tree View
+- src/managers/ManagersContainer.ts — refreshCourseExplorer() метод
+- src/test/suite/courseExplorer.test.ts — тесты Course Explorer (16 тестов)
+- Интеграция refresh в команды createCourse и addLecture
+- Тесты: 204+ тестов total
 
 ---
 
@@ -53,6 +66,10 @@ src/                          # Исходный код расширения
 ├── utils/
 │   ├── process.ts            # Утилита для выполнения shell-команд
 │   └── translit.ts           # Транслитерация кириллицы в латиницу
+├── providers/
+│   ├── CourseExplorer.ts     # Tree View менеджер
+│   └── CourseExplorerDataProvider.ts # Tree Data Provider
+└── commands.ts              # Регистрация и реализация команд
 └── test/
     └── suite/
         └── utils/                 # Утилиты для тестов
@@ -61,6 +78,8 @@ src/                          # Исходный код расширения
         ├── lectureManager.test.ts  # Тесты LectureManager (40+)
         ├── buildManager.test.ts    # Тесты BuildManager (10+)
         ├── process.test.ts        # Тесты ProcessHelper (25+)
+        ├── commands.test.ts       # Тесты команд (187+)
+        └── courseExplorer.test.ts # Тесты Course Explorer (16)
         └── example.test.ts         # Примеры тестов
 
 template/                     # Шаблоны для создания курсов
@@ -407,6 +426,71 @@ interface BuildError {
   exitCode: number;
 }
 
+// CourseExplorer типы
+interface CourseTreeItem extends vscode.TreeItem {
+  type: 'root' | 'folder' | 'lecture' | 'action';
+  uri?: string;
+  command?: vscode.Command;
+}
+
+// ManagersContainer типы
+interface ManagersContainer {
+  isInitialized(): boolean;
+  courseManager: CourseManager | null;
+  lectureManager: LectureManager | null;
+  buildManager: BuildManager | null;
+  refreshCourseExplorer(): void;
+}
+
+#### 10. CourseExplorer — Tree View менеджер
+
+Класс для управления Course Explorer в боковой панели VS Code.
+
+Методы:
+- `initialize(managers)` — инициализирует Tree View с менеджерами
+- `refresh()` — обновляет данные в Tree View
+- `dispose()` — освобождает ресурсы
+
+Свойства:
+- `treeView` — экземпляр vscode.TreeView
+
+#### 11. CourseExplorerDataProvider — Tree Data Provider
+
+Реализует vscode.TreeDataProvider для Course Explorer.
+
+Методы:
+- `getTreeItem(element)` — возвращает TreeItem для отображения
+- `getChildren(element?)` — возвращает дочерние элементы
+- `getParent(element)` — возвращает родительский элемент
+- `refresh()` — вызывает обновление Tree View
+
+Структура дерева:
+- Course Root (название курса)
+  ├── Lectures (папка с лекциями)
+  │   └── lecture-{name} (лекция → sliman.openSlides)
+  └── Actions (папка с действиями)
+      ├── Build course (→ sliman.buildCourse)
+      └── Setup GitHub Pages (→ sliman.setupPages)
+
+#### 12. Commands — модуль команд
+
+Модуль для регистрации и выполнения команд VS Code.
+
+Функции:
+- `initializeCommands(context, outputChannel)` — регистрирует все команды
+- `createCourse()` — создание нового курса
+- `addLecture()` — добавление новой лекции
+- `scanCourse()` — сканирование курса
+- `runLecture(name)` — запуск dev сервера лекции
+- `buildLecture(name)` — сборка лекции
+- `openSlides(name)` — открытие slides.md
+- `buildCourse()` — сборка всего курса
+- `setupPages()` — настройка GitHub Pages
+
+Интеграция с Tree View:
+- createCourse() → refreshCourseExplorer()
+- addLecture() → refreshCourseExplorer()
+
 ---
 
 ## Команды расширения
@@ -487,11 +571,37 @@ interface BuildError {
 - Создание структуры лекции через LectureManager
 - Логирование в output channel
 
-### Stage 4 — Tree View (Планируется)
+### Stage 4 — Tree View (Завершён)
 
 Реализация Course Explorer — древовидного представления структуры курса в панели VS Code.
 
-### Stage 5 — Контекстные меню (Планируется)
+| Компонент | Файл | Статус |
+|-----------|------|--------|
+| CourseExplorer.ts | src/providers/CourseExplorer.ts | ✅ |
+| CourseExplorerDataProvider.ts | src/providers/CourseExplorerDataProvider.ts | ✅ |
+| refreshCourseExplorer() | src/managers/ManagersContainer.ts | ✅ |
+| Тесты | src/test/suite/courseExplorer.test.ts | ✅ 16 тестов |
+| Интеграция refresh в команды | src/commands.ts | ✅ |
+
+**Функциональность Course Explorer:**
+- Отображение названия курса из sliman.json
+- Папка "Lectures" со списком всех лекций из slides.json
+- Папка "Actions" с командами "Build course" и "Setup GitHub Pages"
+- Клик по лекции → выполнение команды sliman.openSlides
+- Автоматическое обновление после createCourse/addLecture
+
+**Структура Tree View:**
+```
+Course Name/
+├── Lectures/
+│   ├── About the Subject (about)
+│   └── MongoDB (mongo)
+└── Actions/
+    ├── Build course
+    └── Setup GitHub Pages
+```
+
+### Stage 5 — Контекстные меню (В разработке)
 
 Интеграция с проводником файлов для быстрого доступа к командам.
 

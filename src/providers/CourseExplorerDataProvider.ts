@@ -188,7 +188,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
     return {
       id: 'actions-folder',
       label: 'Actions',
-      type: 'folder',
+      type: 'action',
       icon: '$(gear)',
       collapsible: vscode.TreeItemCollapsibleState.None,
       contextValue: 'actions-folder',

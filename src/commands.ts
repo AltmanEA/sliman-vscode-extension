@@ -133,6 +133,9 @@ export async function createCourse(): Promise<void> {
     channel.appendLine('Course created successfully!');
     void vscode.window.showInformationMessage(`Course "${courseName}" created!`);
 
+    // Refresh Course Explorer tree view
+    managersContainer.refreshCourseExplorer();
+
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     channel.appendLine(`Error creating course: ${errorMessage}`);
@@ -277,6 +280,10 @@ export async function addLecture(): Promise<void> {
     await lectureManager.createLecture(folderName, title);
     channel.appendLine(`Lecture "${title}" created successfully!`);
     void vscode.window.showInformationMessage(`Lecture "${title}" created!`);
+
+    // Refresh Course Explorer tree view
+    managersContainer.refreshCourseExplorer();
+
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     channel.appendLine(`Error creating lecture: ${errorMessage}`);

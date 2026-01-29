@@ -24,6 +24,12 @@ export class CourseExplorer {
   /** Extension context for subscriptions */
   private readonly _context: vscode.ExtensionContext;
 
+  /** Track if initialization has been called */
+  private _isInitialized = false;
+
+  /** Track if refresh command is registered */
+  private _refreshCommandRegistered = false;
+
   /**
    * Creates a new CourseExplorer instance
    * @param context - VS Code extension context
@@ -46,6 +52,12 @@ export class CourseExplorer {
    * @param managers - ManagersContainer with initialized managers
    */
   initialize(managers: ManagersContainer): void {
+    // Prevent re-initialization
+    if (this._isInitialized) {
+      console.log('[CourseExplorer] Already initialized, skipping');
+      return;
+    }
+
     if (!managers.isInitialized()) {
       console.error('[CourseExplorer] Cannot initialize: managers not ready');
       return;
@@ -66,13 +78,23 @@ export class CourseExplorer {
       showCollapseAll: true,
     });
 
-    // Register refresh command
-    this._context.subscriptions.push(
-      vscode.commands.registerCommand('courseExplorer.refresh', () => {
-        this.refresh();
-      })
-    );
+    // Register refresh command only once (with error handling for duplicate registration)
+    if (!this._refreshCommandRegistered) {
+      try {
+        this._context.subscriptions.push(
+          vscode.commands.registerCommand('courseExplorer.refresh', () => {
+            this.refresh();
+          })
+        );
+        this._refreshCommandRegistered = true;
+      } catch (error) {
+        // Command already registered, ignore
+        console.log('[CourseExplorer] Refresh command already registered');
+        this._refreshCommandRegistered = true;
+      }
+    }
 
+    this._isInitialized = true;
     console.log('[CourseExplorer] Tree view initialized');
   }
 
@@ -100,6 +122,8 @@ export class CourseExplorer {
       this._dataProvider = null;
     }
 
+    this._isInitialized = false;
+    this._refreshCommandRegistered = false;
     console.log('[CourseExplorer] Disposed');
   }
 }
