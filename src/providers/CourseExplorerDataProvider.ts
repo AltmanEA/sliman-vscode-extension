@@ -90,6 +90,17 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
       return this.buildActionItems();
     }
 
+    // Lecture item - return lecture actions folder
+    if (element.id.startsWith('lecture-') && !element.id.startsWith('lecture-actions-')) {
+      const lectureName = element.id.replace('lecture-', '');
+      return [this.buildLectureActionsFolderItem(lectureName)];
+    }
+
+    // Lecture actions folder - return edit action
+    if (element.id.startsWith('lecture-actions-')) {
+      return this.buildLectureEditActionItem(element.id);
+    }
+
     return [];
   }
 
@@ -106,8 +117,9 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
 
     // Define parent-child relationships
     const isChildOfRoot = element.id === 'lectures-folder' || element.id === 'actions-folder';
-    const isLecture = element.id.startsWith('lecture-');
-    const isAction = element.id.startsWith('action-');
+    const isLecture = element.id.startsWith('lecture-') && !element.id.startsWith('lecture-actions-');
+    const isLectureAction = element.id.startsWith('lecture-actions-');
+    const isAction = element.id.startsWith('action-') && !element.id.startsWith('lecture-actions-');
 
     if (isChildOfRoot) {
       // Return root item
@@ -117,6 +129,12 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
     if (isLecture) {
       // Return lectures folder
       return Promise.resolve(this.buildLecturesFolderItem());
+    }
+
+    if (isLectureAction) {
+      // Return lecture item (parent is the lecture)
+      const lectureId = element.id.replace('lecture-actions-', 'lecture-');
+      return Promise.resolve(this.buildLectureItem(lectureId));
     }
 
     if (isAction) {
@@ -232,21 +250,93 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
     const lectures = slidesConfig?.slides ?? [];
 
     return lectures.map((lecture): CourseTreeItem => {
-      const command: vscode.Command = {
-        command: 'sliman.openSlides',
-        title: 'Open slides.md',
-        arguments: [lecture.name],
-      };
-
       return {
         id: `lecture-${lecture.name}`,
         label: `${lecture.title} (${lecture.name})`,
         type: 'lecture',
         icon: '$(file-code)',
-        command,
+        collapsible: vscode.TreeItemCollapsibleState.Collapsed,
         contextValue: 'lecture',
       };
     });
+  }
+
+  /**
+   * Builds a single lecture item by lecture ID
+   * @param lectureId - Lecture ID (e.g., 'lecture-about')
+   * @returns CourseTreeItem for the lecture
+   */
+  private async buildLectureItem(lectureId: string): Promise<CourseTreeItem> {
+    const slidesConfig = await this.courseManager.readSlidesJson();
+    const lectures = slidesConfig?.slides ?? [];
+    
+    const lectureName = lectureId.replace('lecture-', '');
+    const lecture = lectures.find(l => l.name === lectureName);
+
+    return {
+      id: lectureId,
+      label: lecture ? `${lecture.title} (${lecture.name})` : lectureName,
+      type: 'lecture',
+      icon: '$(file-code)',
+      collapsible: vscode.TreeItemCollapsibleState.Collapsed,
+      contextValue: 'lecture',
+    };
+  }
+
+  /**
+   * Builds lecture actions folder (Actions inside lecture)
+   * @param lectureName - Lecture folder name
+   * @returns CourseTreeItem for lecture actions folder
+   */
+  private buildLectureActionsFolderItem(lectureName: string): CourseTreeItem {
+    return {
+      id: `lecture-actions-${lectureName}`,
+      label: 'Actions',
+      type: 'folder',
+      icon: '$(gear)',
+      collapsible: vscode.TreeItemCollapsibleState.Collapsed,
+      contextValue: 'lecture-actions-folder',
+    };
+  }
+
+  /**
+   * Builds the "Edit" action item for a lecture
+   * @param lectureId - Lecture actions folder ID (e.g., 'lecture-actions-about')
+   * @returns Array with Edit and Open slides action items
+   */
+  private async buildLectureEditActionItem(lectureId: string): Promise<CourseTreeItem[]> {
+    const lectureName = lectureId.replace('lecture-actions-', '');
+    
+    const editCommand: vscode.Command = {
+      command: 'sliman.runLecture',
+      title: 'Edit',
+      arguments: [lectureName],
+    };
+
+    const openSlidesCommand: vscode.Command = {
+      command: 'sliman.openSlides',
+      title: 'Open slides.md',
+      arguments: [lectureName],
+    };
+
+    return [
+      {
+        id: `lecture-action-edit-${lectureName}`,
+        label: 'Edit',
+        type: 'action',
+        icon: '$(edit)',
+        command: editCommand,
+        contextValue: 'lecture-edit-action',
+      },
+      {
+        id: `lecture-action-open-${lectureName}`,
+        label: 'Open slides.md',
+        type: 'action',
+        icon: '$(file-code)',
+        command: openSlidesCommand,
+        contextValue: 'lecture-open-action',
+      },
+    ];
   }
 
   /**

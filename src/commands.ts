@@ -356,10 +356,10 @@ export async function runLecture(name: string): Promise<void> {
   await buildManager.runDevServer(name);
   channel.appendLine('Dev server started');
 
-  // Step 5: Open browser
-  channel.appendLine('Opening browser...');
-  void vscode.env.openExternal(vscode.Uri.parse('http://localhost:3000'));
-  channel.appendLine('Browser opened');
+  // Step 5: Open browser (disabled - slidev opens browser automatically)
+  // channel.appendLine('Opening browser...');
+  // void vscode.env.openExternal(vscode.Uri.parse('http://localhost:3000'));
+  // channel.appendLine('Browser opened');
 }
 
 /**

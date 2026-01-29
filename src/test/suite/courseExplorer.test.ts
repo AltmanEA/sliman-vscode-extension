@@ -190,12 +190,66 @@ suite('CourseExplorer Test Suite', () => {
       const lectureItems = await dataProvider.getChildren(lecturesFolder);
       assert.strictEqual(lectureItems.length, 2, 'Should return 2 lectures');
 
-      // Check lecture properties
+      // Check lecture properties (no direct command - command is in Actions folder inside lecture)
       const aboutLecture = lectureItems.find(item => item.id === 'lecture-about');
       assert.ok(aboutLecture, 'About lecture should exist');
       assert.strictEqual(aboutLecture?.label, 'About the Subject (about)', 'Label should include title and name');
       assert.strictEqual(aboutLecture?.type, 'lecture', 'Type should be "lecture"');
-      assert.ok(aboutLecture?.command, 'Lecture should have command');
+      assert.strictEqual(aboutLecture?.collapsible, vscode.TreeItemCollapsibleState.Collapsed, 'Should be collapsible');
+      assert.strictEqual(aboutLecture?.contextValue, 'lecture', 'Context value should be "lecture"');
+    });
+
+    test('should show actions folder inside each lecture', async () => {
+      const dataProvider = new DataProviderClass(mockCourseManager as unknown as CourseManager);
+      const rootItems = await dataProvider.getChildren();
+      
+      const lecturesFolder = rootItems.find(item => item.id === 'lectures-folder');
+      const lectureItems = await dataProvider.getChildren(lecturesFolder);
+      
+      const aboutLecture = lectureItems.find(item => item.id === 'lecture-about');
+      assert.ok(aboutLecture, 'About lecture should exist');
+
+      // Get actions folder inside lecture
+      const lectureActions = await dataProvider.getChildren(aboutLecture);
+      assert.strictEqual(lectureActions.length, 1, 'Should return 1 folder (Actions) inside lecture');
+
+      const actionsFolder = lectureActions.find(item => item.id === 'lecture-actions-about');
+      assert.ok(actionsFolder, 'Actions folder should exist inside lecture');
+      assert.strictEqual(actionsFolder?.label, 'Actions', 'Label should be "Actions"');
+      assert.strictEqual(actionsFolder?.type, 'folder', 'Type should be "folder"');
+      assert.strictEqual(actionsFolder?.collapsible, vscode.TreeItemCollapsibleState.Collapsed, 'Should be collapsible');
+    });
+
+    test('should show edit and open actions inside lecture actions folder', async () => {
+      const dataProvider = new DataProviderClass(mockCourseManager as unknown as CourseManager);
+      const rootItems = await dataProvider.getChildren();
+      
+      const lecturesFolder = rootItems.find(item => item.id === 'lectures-folder');
+      const lectureItems = await dataProvider.getChildren(lecturesFolder);
+      
+      const aboutLecture = lectureItems.find(item => item.id === 'lecture-about');
+      const lectureActions = await dataProvider.getChildren(aboutLecture);
+      const actionsFolder = lectureActions.find(item => item.id === 'lecture-actions-about');
+
+      // Get actions inside lecture actions folder
+      const actionItems = await dataProvider.getChildren(actionsFolder);
+      assert.strictEqual(actionItems.length, 2, 'Should return 2 actions (Edit, Open slides.md)');
+      
+      // Check Edit action
+      const editAction = actionItems.find(item => item.id === 'lecture-action-edit-about');
+      assert.ok(editAction, 'Edit action should exist');
+      assert.strictEqual(editAction?.label, 'Edit', 'Label should be "Edit"');
+      assert.strictEqual(editAction?.type, 'action', 'Type should be "action"');
+      assert.strictEqual(editAction?.command?.command, 'sliman.runLecture', 'Command should be sliman.runLecture');
+      assert.strictEqual(editAction?.icon, '$(edit)', 'Icon should be $(edit)');
+
+      // Check Open slides.md action
+      const openAction = actionItems.find(item => item.id === 'lecture-action-open-about');
+      assert.ok(openAction, 'Open slides.md action should exist');
+      assert.strictEqual(openAction?.label, 'Open slides.md', 'Label should be "Open slides.md"');
+      assert.strictEqual(openAction?.type, 'action', 'Type should be "action"');
+      assert.strictEqual(openAction?.command?.command, 'sliman.openSlides', 'Command should be sliman.openSlides');
+      assert.strictEqual(openAction?.icon, '$(file-code)', 'Icon should be $(file-code)');
     });
 
     test('should handle empty lectures list', async () => {
@@ -203,7 +257,7 @@ suite('CourseExplorer Test Suite', () => {
 
       const dataProvider = new DataProviderClass(mockCourseManager as unknown as CourseManager);
       const rootItems = await dataProvider.getChildren();
-      
+
       const lecturesFolder = rootItems.find(item => item.id === 'lectures-folder');
       const lectureItems = await dataProvider.getChildren(lecturesFolder);
       
@@ -213,7 +267,7 @@ suite('CourseExplorer Test Suite', () => {
     test('should show actions folder with correct properties', async () => {
       const dataProvider = new DataProviderClass(mockCourseManager as unknown as CourseManager);
       const rootItems = await dataProvider.getChildren();
-
+      
       const actionsFolder = rootItems.find(item => item.id === 'actions-folder');
       assert.ok(actionsFolder, 'Actions folder should exist');
       assert.strictEqual(actionsFolder?.label, 'Actions', 'Label should be "Actions"');

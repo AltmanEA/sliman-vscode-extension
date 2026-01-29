@@ -430,7 +430,7 @@ export class BuildManager {
 
   /**
    * Runs a development server for a lecture
-   * Creates a terminal and runs npm run dev in the lecture directory
+   * Creates a terminal and runs pnpm run dev in the lecture directory
    * Terminal remains open for user interaction (close manually to stop)
    * @param name - Lecture folder name
    * @returns Promise resolving when terminal is created
@@ -448,8 +448,8 @@ export class BuildManager {
     // Create terminal
     const terminal = vscode.window.createTerminal(terminalName);
 
-    // Run npm run dev in the lecture directory
-    terminal.sendText(`cd "${lecturePath}" && npm run dev`);
+    // Run pnpm run dev with ; separator (works on all PowerShell versions)
+    terminal.sendText(`cd "${lecturePath}"; pnpm run dev`);
     terminal.show();
 
     // Terminal is not disposed - user closes it manually to stop the server
