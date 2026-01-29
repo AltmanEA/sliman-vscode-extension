@@ -187,9 +187,9 @@ suite('Commands Module', () => {
       assert.strictEqual(command.category, 'sli.dev Course', 'Should have correct category');
     });
 
-    test('should have exactly 8 commands registered', () => {
+    test('should have exactly 9 commands registered', () => {
       const commandCount = packageJson.contributes.commands.length;
-      assert.strictEqual(commandCount, 8, 'Should have exactly 8 commands registered');
+      assert.strictEqual(commandCount, 9, 'Should have exactly 9 commands registered');
     });
   });
 

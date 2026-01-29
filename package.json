@@ -12,6 +12,24 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sliman-course-view",
+          "title": "Course",
+          "icon": "./resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "sliman-course-view": [
+        {
+          "id": "courseExplorer",
+          "name": "Course Explorer",
+          "type": "tree"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "sliman.createCourse",
@@ -52,8 +70,22 @@
         "command": "sliman.setupPages",
         "title": "Setup GitHub Pages",
         "category": "sli.dev Course"
+      },
+      {
+        "command": "courseExplorer.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "courseExplorer.refresh",
+          "group": "navigation",
+          "when": "view == courseExplorer"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",

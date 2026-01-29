@@ -5,12 +5,14 @@
  * Managers are initialized once during extension activation and reused across commands.
  * 
  * Stage 2: Includes CourseManager, LectureManager, and BuildManager
+ * Stage 4: Includes CourseExplorer
  */
 
 import type * as vscode from 'vscode';
 import { CourseManager } from './CourseManager';
 import { LectureManager } from './LectureManager';
 import { BuildManager } from './BuildManager';
+import { CourseExplorer } from '../providers/CourseExplorer';
 
 /**
  * Container for storing and providing access to extension managers
@@ -19,15 +21,18 @@ export class ManagersContainer {
   private _courseManager: CourseManager | null = null;
   private _lectureManager: LectureManager | null = null;
   private _buildManager: BuildManager | null = null;
+  private _courseExplorer: CourseExplorer | null = null;
 
   /**
    * Initializes all managers with the given workspace URI
    * @param workspaceUri - The workspace folder URI
+   * @param context - VS Code extension context (for CourseExplorer)
    */
-  initialize(workspaceUri: vscode.Uri): void {
+  initialize(workspaceUri: vscode.Uri, context: vscode.ExtensionContext): void {
     this._courseManager = new CourseManager(workspaceUri);
     this._lectureManager = new LectureManager(this._courseManager);
     this._buildManager = new BuildManager(this._courseManager, this._lectureManager);
+    this._courseExplorer = new CourseExplorer(context);
   }
 
   /**
@@ -55,6 +60,14 @@ export class ManagersContainer {
   }
 
   /**
+   * Gets the CourseExplorer instance
+   * @returns CourseExplorer or null if not initialized
+   */
+  get courseExplorer(): CourseExplorer | null {
+    return this._courseExplorer;
+  }
+
+  /**
    * Checks if managers are initialized
    * @returns True if managers are ready
    */
@@ -65,12 +78,20 @@ export class ManagersContainer {
   }
 
   /**
+   * Refreshes the Course Explorer tree view
+   */
+  refreshCourseExplorer(): void {
+    this._courseExplorer?.refresh();
+  }
+
+  /**
    * Resets all managers (useful for testing or workspace changes)
    */
   reset(): void {
     this._courseManager = null;
     this._lectureManager = null;
     this._buildManager = null;
+    this._courseExplorer = null;
   }
 }
 

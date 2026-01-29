@@ -29,7 +29,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Commands are NOT registered - extension stays in idle state
     return;
   } else {
-    managersContainer.initialize(workspaceFolders[0].uri);
+    managersContainer.initialize(workspaceFolders[0].uri, context);
+
+    // Initialize Course Explorer tree view
+    const courseExplorer = managersContainer.courseExplorer;
+    if (courseExplorer) {
+      courseExplorer.initialize(managersContainer);
+      context.subscriptions.push(courseExplorer);
+    }
 
     // Initialize commands module with output channel and extension path
     initializeCommands(outputChannel, context.extensionPath);
@@ -52,5 +59,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
 export function deactivate(): void {
   console.log(`Extension "${EXTENSION_ID}" is now deactivated`);
+  managersContainer.courseExplorer?.dispose();
   outputChannel.dispose();
 }

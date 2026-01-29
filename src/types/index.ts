@@ -2,6 +2,14 @@
  * Type definitions for sli.dev Course VS Code Extension
  */
 
+// Re-export Course Explorer types
+export type {
+  CourseTreeItem,
+  LectureTreeItem,
+  ActionTreeItem,
+  FolderTreeItem,
+} from './courseExplorer';
+
 /**
  * Course configuration stored in sliman.json
  */
