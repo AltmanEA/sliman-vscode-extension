@@ -220,19 +220,28 @@ suite('CourseExplorer Test Suite', () => {
       assert.strictEqual(actionsFolder?.type, 'action', 'Type should be "action"');
     });
 
-    test('should list build course and setup pages actions', async () => {
+    test('should list add lecture, build course, and setup pages actions', async () => {
       const dataProvider = new DataProviderClass(mockCourseManager as unknown as CourseManager);
       const rootItems = await dataProvider.getChildren();
       
       const actionsFolder = rootItems.find(item => item.id === 'actions-folder');
       const actionItems = await dataProvider.getChildren(actionsFolder);
       
-      assert.strictEqual(actionItems.length, 2, 'Should return 2 actions');
+      assert.strictEqual(actionItems.length, 3, 'Should return 3 actions');
 
+      // Add Lecture action
+      const addLectureAction = actionItems.find(item => item.id === 'action-add-lecture');
+      assert.ok(addLectureAction, 'Add Lecture action should exist');
+      assert.strictEqual(addLectureAction?.label, 'Add Lecture', 'Add Lecture action label should be correct');
+      assert.strictEqual(addLectureAction?.command?.command, 'sliman.addLecture', 'Command should be sliman.addLecture');
+      assert.strictEqual(addLectureAction?.icon, '$(add)', 'Icon should be $(add)');
+
+      // Build Course action
       const buildAction = actionItems.find(item => item.id === 'action-build-course');
       assert.ok(buildAction, 'Build course action should exist');
       assert.strictEqual(buildAction?.label, 'Build course', 'Build action label should be correct');
 
+      // Setup GitHub Pages action
       const pagesAction = actionItems.find(item => item.id === 'action-setup-pages');
       assert.ok(pagesAction, 'Setup GitHub Pages action should exist');
       assert.strictEqual(pagesAction?.label, 'Setup GitHub Pages', 'Pages action label should be correct');
@@ -263,6 +272,25 @@ suite('CourseExplorer Test Suite', () => {
 
       // Should still return folders even without config
       assert.ok(rootItems.length > 0, 'Should return folder items even without config');
+    });
+
+    test('should show "Create Course" item when course does not exist', async () => {
+      // Configure mock with null config (no course)
+      mockCourseManager.configure(null, null);
+
+      // Override isCourseRoot to return false
+      (mockCourseManager as unknown as { isCourseRoot(): Promise<boolean> }).isCourseRoot = async () => false;
+
+      const dataProvider = new DataProviderClass(mockCourseManager as unknown as CourseManager);
+      const rootItems = await dataProvider.getChildren();
+      
+      // Should return "Create Course" item when course doesn't exist
+      assert.strictEqual(rootItems.length, 1, 'Should return 1 item for empty course');
+      const createCourseItem = rootItems.find(item => item.id === 'create-course');
+      assert.ok(createCourseItem, 'Create Course item should exist');
+      assert.strictEqual(createCourseItem?.label, 'Create Course', 'Label should be "Create Course"');
+      assert.strictEqual(createCourseItem?.type, 'action', 'Type should be "action"');
+      assert.strictEqual(createCourseItem?.command?.command, 'sliman.createCourse', 'Command should be sliman.createCourse');
     });
   });
 

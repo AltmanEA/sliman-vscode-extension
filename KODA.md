@@ -26,7 +26,7 @@
 **Stage 3 (Завершён):**
 - src/commands.ts — регистрация и реализация всех команд
 - src/test/suite/commands.test.ts — тесты команд (187+ тестов)
-- createCourse, addLecture, scanCourse, runLecture, buildLecture, openSlides, buildCourse, setupPages
+- createCourse, addLecture, scanCourse, runLecture, buildLecture, openSlides, buildCourse, setupPages (реализованы)
 
 **Stage 4 (Завершён):**
 - src/providers/CourseExplorer.ts — Tree View менеджер
@@ -57,7 +57,8 @@ src/                          # Исходный код расширения
 ├── extension.ts              # Точка входа расширения (активация/деактивация)
 ├── constants.ts              # Константы (пути, имена файлов, ключи конфигурации)
 ├── types/
-│   └── index.ts              # TypeScript интерфейсы и типы
+│   ├── index.ts              # Базовые типы (SlimanConfig, LectureInfo, etc.)
+│   └── courseExplorer.ts     # Типы для Course Explorer
 ├── managers/
 │   ├── ManagersContainer.ts  # Singleton-контейнер для менеджеров
 │   ├── CourseManager.ts      # Управление конфигурацией курса
@@ -69,26 +70,35 @@ src/                          # Исходный код расширения
 ├── providers/
 │   ├── CourseExplorer.ts     # Tree View менеджер
 │   └── CourseExplorerDataProvider.ts # Tree Data Provider
-└── commands.ts              # Регистрация и реализация команд
+├── commands.ts               # Регистрация и реализация команд
 └── test/
+    ├── utils/                # Утилиты для тестов
+    │   └── testWorkspace.ts  # Унификация работы с test-workspace
     └── suite/
-        └── utils/                 # Утилиты для тестов
-            └── testWorkspace.ts    # Унификация работы с test-workspace
         ├── courseManager.test.ts  # Тесты CourseManager
         ├── lectureManager.test.ts  # Тесты LectureManager (40+)
         ├── buildManager.test.ts    # Тесты BuildManager (10+)
         ├── process.test.ts        # Тесты ProcessHelper (25+)
         ├── commands.test.ts       # Тесты команд (187+)
-        └── courseExplorer.test.ts # Тесты Course Explorer (16)
-        └── example.test.ts         # Примеры тестов
+        ├── courseExplorer.test.ts # Тесты Course Explorer (16)
+        ├── extension.test.ts      # Тесты точки входа
+        └── integration.test.ts    # Интеграционные тесты
 
 template/                     # Шаблоны для создания курсов
 ├── slides.md                 # Шаблон лекции
 ├── index.html                # Шаблон главной страницы курса
 ├── package.json              # Шаблон package.json для лекций
-└── static.yml                # GitHub Actions workflow для GitHub Pages
+├── static.yml                # GitHub Actions workflow для GitHub Pages
+├── Courser.vue               # Vue компонент курса
+└── global-top.vue            # Глобальный компонент верхней панели
 
 docs/                         # Документация и планы
+├── IMPLEMENTATION_PLAN.md    # План реализации
+├── STAGE1_TASKS.md           # Задачи Stage 1
+├── STAGE2_BREAKDOWN.md       # Разбивка Stage 2
+├── STAGE3_PLAN.md            # План Stage 3
+├── STAGE4_PLAN.md            # План Stage 4
+└── TECHNICAL_SPEC.md         # Техническая спецификация
 example/                      # Пример курса для тестирования
 test-workspace/               # Рабочее пространство для тестов
 package.json                  # Конфигурация расширения VS Code
@@ -113,6 +123,15 @@ pnpm run lint
 
 # Проверка линтером без внесения изменений
 pnpm run lint:check
+
+# Запуск тестов определённой категории
+pnpm run test:course          # Тесты CourseManager
+pnpm run test:commands        # Тесты команд
+pnpm run test:lecture         # Тесты LectureManager
+pnpm run test:process         # Тесты ProcessHelper
+pnpm run test:build           # Тесты BuildManager
+pnpm run test:translit        # Тесты транслитерации
+pnpm run test:extension       # Тесты точки входа
 
 # Запуск полного набора тестов
 pnpm run test
@@ -503,15 +522,18 @@ interface ManagersContainer {
 | sliman.createCourse | Create Course | Создаёт новую структуру курса (sliman.json, slides.json, slides/) |
 | sliman.addLecture | Add Lecture | Добавляет новую лекцию с автогенерацией имени папки |
 
-### Планируемые команды
+### Реализованные команды (полный список)
 
-| ID команды | Название | Статус | Описание |
-|------------|----------|--------|----------|
-| sliman.runLecture | Run Lecture | Stage 3 | Запускает лекцию в режиме разработки |
-| sliman.buildLecture | Build Lecture | Stage 3 | Собирает лекцию в статические файлы |
-| sliman.openSlides | Open slides.md | Stage 3 | Открывает файл slides.md текущей лекции |
-| sliman.buildCourse | Build Course | Stage 3 | Собирает весь курс |
-| sliman.setupPages | Setup GitHub Pages | Stage 3 | Настраивает GitHub Pages для курса |
+| ID команды | Название | Описание |
+|------------|----------|----------|
+| sliman.scanCourse | Scan Course | Сканирует курс и выводит информацию: название курса, список лекций |
+| sliman.createCourse | Create Course | Создаёт новую структуру курса (sliman.json, slides.json, slides/) |
+| sliman.addLecture | Add Lecture | Добавляет новую лекцию с автогенерацией имени папки |
+| sliman.runLecture | Run Lecture | Запускает лекцию в режиме разработки |
+| sliman.buildLecture | Build Lecture | Собирает лекцию в статические файлы |
+| sliman.openSlides | Open slides.md | Открывает файл slides.md текущей лекции |
+| sliman.buildCourse | Build Course | Собирает весь курс |
+| sliman.setupPages | Setup GitHub Pages | Настраивает GitHub Pages для курса |
 
 ---
 
@@ -526,7 +548,7 @@ interface ManagersContainer {
 - Тесты: 187 тестов с унифицированными утилитами ✓
 - src/test/utils/testWorkspace.ts — унификация работы с test-workspace ✓
 
-### Stage 3 — UI команды (В разработке)
+### Stage 3 — UI команды (Завершён)
 
 Реализация 8 команд для полноценной работы с курсом:
 
@@ -534,11 +556,12 @@ interface ManagersContainer {
 |------------|----------|--------|----------|
 | sliman.createCourse | Create Course | ✅ Готово | Создаёт новую структуру курса |
 | sliman.addLecture | Add Lecture | ✅ Готово | Добавляет новую лекцию |
-| sliman.runLecture | Run Lecture | ⏳ | Запускает лекцию в режиме разработки |
-| sliman.buildLecture | Build Lecture | ⏳ | Собирает лекцию в статические файлы |
-| sliman.openSlides | Open slides.md | ⏳ | Открывает файл slides.md текущей лекции |
-| sliman.buildCourse | Build Course | ⏳ | Собирает весь курс |
-| sliman.setupPages | Setup GitHub Pages | ⏳ | Настраивает GitHub Pages для курса |
+| sliman.scanCourse | Scan Course | ✅ Готово | Сканирует курс и выводит информацию |
+| sliman.runLecture | Run Lecture | ✅ Готово | Запускает лекцию в режиме разработки |
+| sliman.buildLecture | Build Lecture | ✅ Готово | Собирает лекцию в статические файлы |
+| sliman.openSlides | Open slides.md | ✅ Готово | Открывает файл slides.md текущей лекции |
+| sliman.buildCourse | Build Course | ✅ Готово | Собирает весь курс |
+| sliman.setupPages | Setup GitHub Pages | ✅ Готово | Настраивает GitHub Pages для курса |
 
 ### Stage 3.1 — Command Registration Framework (Завершено)
 

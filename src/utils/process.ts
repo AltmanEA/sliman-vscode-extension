@@ -373,7 +373,17 @@ export class ProcessHelper {
    * @returns Promise resolving to ProcessResult
    */
   static async installDependencies(cwd: string, options?: ProcessOptions): Promise<ProcessResult> {
-    return this.execPackageManager('install', cwd, [], options);
+    const packageManager = options?.packageManager ?? 'npm';
+    const timeout = options?.timeout ?? 300000;
+
+    let command: string;
+    if (packageManager === 'pnpm') {
+      command = 'pnpm install';
+    } else {
+      command = 'npm install';
+    }
+
+    return this.exec(command, { ...options, cwd, timeout });
   }
 
   /**

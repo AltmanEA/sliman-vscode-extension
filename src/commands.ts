@@ -4,7 +4,6 @@ import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { managersContainer } from './managers/ManagersContainer';
-import { LECTURE_PREFIX } from './constants';
 import { generateLectureFolderName, isValidFolderName } from './utils/translit';
 
 let outputChannel: vscode.OutputChannel | null = null;
@@ -33,19 +32,32 @@ export async function createCourse(): Promise<void> {
   channel.appendLine('Command: createCourse - Starting...');
   channel.show();
 
-  // Step 1: Get course name
-  const courseName = await vscode.window.showInputBox({
-    prompt: 'Enter course name',
-    placeHolder: 'e.g., Introduction to TypeScript',
-    validateInput: (value) => {
-      if (!value || value.trim().length === 0) {
-        return 'Course name cannot be empty';
-      }
-      if (value.length > 100) {
-        return 'Course name must be 100 characters or less';
-      }
-      return null;
-    }
+  // Step 1: Get workspace folder first (needed for context)
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    channel.appendLine('Error: No workspace folder is open');
+    void vscode.window.showErrorMessage('Please open a folder first');
+    return;
+  }
+
+  // Step 2: Get course name (use setTimeout to let Tree View release focus)
+  const courseName = await new Promise<string | undefined>((resolve) => {
+    setTimeout(() => {
+      void vscode.window.showInputBox({
+        prompt: 'Enter course name',
+        placeHolder: 'e.g., Introduction to TypeScript',
+        ignoreFocusOut: false,
+        validateInput: (value) => {
+          if (!value || value.trim().length === 0) {
+            return 'Course name cannot be empty';
+          }
+          if (value.length > 100) {
+            return 'Course name must be 100 characters or less';
+          }
+          return null;
+        }
+      }).then(resolve);
+    }, 100);
   });
 
   if (!courseName) {
@@ -54,14 +66,6 @@ export async function createCourse(): Promise<void> {
   }
 
   channel.appendLine(`Course name: ${courseName}`);
-
-  // Step 2: Get workspace folder
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (!workspaceFolders || workspaceFolders.length === 0) {
-    channel.appendLine('Error: No workspace folder is open');
-    void vscode.window.showErrorMessage('No workspace folder is open');
-    return;
-  }
 
   let selectedFolder: vscode.WorkspaceFolder;
 
@@ -218,6 +222,7 @@ export async function addLecture(): Promise<void> {
   const title = await vscode.window.showInputBox({
     prompt: 'Enter lecture title',
     placeHolder: 'e.g., Introduction to React',
+    ignoreFocusOut: false,
     validateInput: (value) => {
       if (!value || value.trim().length < 3) {
         return 'Title must be at least 3 characters';
@@ -238,12 +243,13 @@ export async function addLecture(): Promise<void> {
 
   // Step 3: Generate and suggest folder name
   const suggestedFolderName = generateLectureFolderName(title);
-  const defaultFolderName = `${LECTURE_PREFIX}${suggestedFolderName}`;
+  const defaultFolderName = suggestedFolderName;
 
   // Step 4: Let user confirm or edit folder name
   const folderName = await vscode.window.showInputBox({
     prompt: 'Enter lecture folder name',
     value: defaultFolderName,
+    ignoreFocusOut: false,
     validateInput: (value) => {
       if (!value || value.trim().length < 1) {
         return 'Folder name is required';
@@ -276,6 +282,9 @@ export async function addLecture(): Promise<void> {
 
   // Step 6: Create lecture
   try {
+    // Set output channel for lecture manager logging
+    lectureManager.setOutputChannel(outputChannel);
+    
     channel.appendLine('Creating lecture...');
     await lectureManager.createLecture(folderName, title);
     channel.appendLine(`Lecture "${title}" created successfully!`);

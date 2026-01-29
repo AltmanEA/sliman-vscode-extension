@@ -22,12 +22,38 @@ export class LectureManager {
   /** Course Manager instance for shared operations */
   private readonly courseManager: CourseManager;
 
+  /** Extension root path for accessing bundled templates */
+  private readonly extensionPath: string;
+
+  /** Optional output channel for logging */
+  private outputChannel: vscode.OutputChannel | null = null;
+
   /**
    * Creates a new LectureManager instance
    * @param courseManager - Course Manager instance (provides workspace URI)
+   * @param extensionPath - Path to the extension root directory
    */
-  constructor(courseManager: CourseManager) {
+  constructor(courseManager: CourseManager, extensionPath: string) {
     this.courseManager = courseManager;
+    this.extensionPath = extensionPath;
+  }
+
+  /**
+   * Sets the output channel for logging
+   * @param channel - VS Code output channel
+   */
+  setOutputChannel(channel: vscode.OutputChannel): void {
+    this.outputChannel = channel;
+  }
+
+  /**
+   * Logs a message to the output channel if available
+   * @param message - Message to log
+   */
+  private log(message: string): void {
+    if (this.outputChannel) {
+      this.outputChannel.appendLine(message);
+    }
   }
 
   // ============================================
@@ -111,7 +137,7 @@ export class LectureManager {
    * @returns The URI of the template file
    */
   private getTemplatePath(templateName: string): vscode.Uri {
-    return vscode.Uri.joinPath(this.courseManager.getCourseRoot(), TEMPLATE_DIR, templateName);
+    return vscode.Uri.joinPath(vscode.Uri.file(this.extensionPath), TEMPLATE_DIR, templateName);
   }
 
   /**
@@ -199,18 +225,38 @@ export class LectureManager {
 
   /**
    * Initializes npm dependencies for a lecture
-   * Runs npm install in the lecture directory
+   * Runs pnpm install in the lecture directory (with npm fallback)
+   * Shows the process in a visible terminal
    * @param name - Lecture folder name
    * @returns Promise that resolves when dependencies are installed
-   * @throws Error if npm install fails
+   * @throws Error if package manager install fails
    */
   async initLectureNpm(name: string): Promise<void> {
     const lecturePath = this.getLectureDir(name).fsPath;
-    const result = await ProcessHelper.installDependencies(lecturePath);
+    const lectureName = name;
 
-    if (!result.success) {
-      throw new Error(`npm install failed for lecture ${name}: ${result.stderr || result.exitCode}`);
+    // Try pnpm first, then fallback to npm
+    let installCommand = 'pnpm install';
+    let packageManager = 'pnpm';
+
+    // Check if pnpm is available
+    let pnpmCheck = await ProcessHelper.exec('pnpm --version', { cwd: lecturePath, timeout: 10000 });
+    if (!pnpmCheck.success) {
+      this.log('pnpm not found, using npm instead');
+      installCommand = 'npm install';
+      packageManager = 'npm';
     }
+
+    this.log(`Installing dependencies (${packageManager}) in: ${lecturePath}`);
+
+    // Create a terminal for the install process
+    const terminal = vscode.window.createTerminal(`Install ${lectureName}`);
+    
+    // Send the install command (use ; for PowerShell compatibility)
+    terminal.sendText(`cd "${lecturePath}"; ${installCommand}`);
+    terminal.show();
+
+    this.log(`Terminal opened. Please check the terminal for installation progress.`);
   }
 
   /**
@@ -241,25 +287,37 @@ export class LectureManager {
     const name = this.validateAndGetFolderName(nameOrTitle, title || nameOrTitle);
     const displayTitle = title || nameOrTitle;
 
+    this.log(`Creating lecture: ${displayTitle} (${name})`);
+
     // Check if lecture already exists
     if (await this.lectureExists(name)) {
       throw new Error(`Lecture "${name}" already exists`);
     }
 
     // Step 1: Create lecture directory
+    this.log('Creating directory...');
     await this.createLectureDir(name);
+    this.log('Directory created.');
 
     // Step 2: Copy and update slides.md template
+    this.log('Copying slides template...');
     await this.copySlidesTemplate(name, displayTitle);
+    this.log('Slides template copied.');
 
     // Step 3: Copy and update package.json template
+    this.log('Copying package.json...');
     await this.copyPackageJson(name);
+    this.log('Package.json copied.');
 
     // Step 4: Initialize npm dependencies
+    this.log('Installing dependencies (pnpm install)...');
     await this.initLectureNpm(name);
 
     // Step 5: Update course configuration
+    this.log('Updating course configuration...');
     await this.updateCourseConfig(name, displayTitle);
+
+    this.log(`Lecture "${displayTitle}" created successfully!`);
 
     return name;
   }

@@ -66,8 +66,17 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
       return [];
     }
 
-    // Root element - return course structure
+    // Root element - check if course exists and return appropriate items
     if (!element) {
+      // Check if course is initialized (sliman.json exists)
+      const isCourseRoot = await this.courseManager.isCourseRoot();
+
+      if (!isCourseRoot) {
+        // No course - show "Create Course" action
+        return [this.buildCreateCourseItem()];
+      }
+
+      // Course exists - return folder structure
       return this.buildFolderItems();
     }
 
@@ -148,6 +157,26 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
   }
 
   /**
+   * Builds the "Create Course" item for empty workspace
+   * @returns CourseTreeItem for creating a new course
+   */
+  private buildCreateCourseItem(): CourseTreeItem {
+    const command: vscode.Command = {
+      command: 'sliman.createCourse',
+      title: 'Create Course',
+    };
+
+    return {
+      id: 'create-course',
+      label: 'Create Course',
+      type: 'action',
+      icon: '$(add)',
+      command,
+      contextValue: 'create-course',
+    };
+  }
+
+  /**
    * Builds the root course item
    * @returns Always returns valid CourseTreeItem
    */
@@ -190,7 +219,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
       label: 'Actions',
       type: 'action',
       icon: '$(gear)',
-      collapsible: vscode.TreeItemCollapsibleState.None,
+      collapsible: vscode.TreeItemCollapsibleState.Collapsed,
       contextValue: 'actions-folder',
     };
   }
@@ -222,11 +251,12 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
   }
 
   /**
-   * Builds action items (Build course, Setup GitHub Pages)
+   * Builds action items (Add Lecture, Build course, Setup GitHub Pages)
    * @returns Array of action tree items
    */
   private buildActionItems(): CourseTreeItem[] {
     const actions: Array<{ id: string; label: string; icon: string; commandId: string }> = [
+      { id: 'action-add-lecture', label: 'Add Lecture', icon: '$(add)', commandId: 'sliman.addLecture' },
       { id: 'action-build-course', label: 'Build course', icon: '$(tools)', commandId: 'sliman.buildCourse' },
       { id: 'action-setup-pages', label: 'Setup GitHub Pages', icon: '$(cloud)', commandId: 'sliman.setupPages' },
     ];

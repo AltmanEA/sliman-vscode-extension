@@ -29,7 +29,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Commands are NOT registered - extension stays in idle state
     return;
   } else {
-    managersContainer.initialize(workspaceFolders[0].uri, context);
+    managersContainer.initialize(workspaceFolders[0].uri, context, context.extensionPath);
 
     // Initialize Course Explorer tree view
     const courseExplorer = managersContainer.courseExplorer;

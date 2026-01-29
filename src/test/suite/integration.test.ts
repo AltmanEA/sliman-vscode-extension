@@ -152,7 +152,8 @@ async function createTestCourse(tempDir: string): Promise<{
 }> {
   const uri = vscode.Uri.file(tempDir);
   const courseManager = new CourseManager(uri);
-  const lectureManager = new LectureManager(courseManager);
+  const extensionPath = path.resolve(__dirname, '../../..');
+  const lectureManager = new LectureManager(courseManager, extensionPath);
 
   // Create sliman.json
   await fs.writeFile(
@@ -454,7 +455,8 @@ suite('Integration Tests', () => {
 
         const uri = vscode.Uri.file(tempDir);
         const _courseManager = new CourseManager(uri);
-        const lectureManager = new LectureManager(_courseManager);
+        const extensionPath = path.resolve(__dirname, '../../..');
+        const lectureManager = new LectureManager(_courseManager, extensionPath);
         const buildManager = createBuildManager(_courseManager, lectureManager);
         void _courseManager; // Explicit use to satisfy noUnusedLocals
 
@@ -490,7 +492,8 @@ suite('Integration Tests', () => {
 
         const uri = vscode.Uri.file(tempDir);
         const courseManager = new CourseManager(uri);
-        const lectureManager = new LectureManager(courseManager);
+        const extensionPath = path.resolve(__dirname, '../../..');
+        const lectureManager = new LectureManager(courseManager, extensionPath);
         const buildManager = createBuildManager(courseManager, lectureManager);
 
         // Configure mock to fail

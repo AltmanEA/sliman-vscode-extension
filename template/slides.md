@@ -1,9 +1,8 @@
----
-title: Название слайда
-canvasWidth: 800
-routerMode: hash
+﻿---
+title: {{TITLE}}
+name: {{NAME}}
+canvasWidth: 1280
+routerMode: history
 ---
 
-# Титульный слайд
-
----
+# {{TITLE}}

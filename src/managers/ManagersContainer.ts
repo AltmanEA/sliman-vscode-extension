@@ -27,10 +27,11 @@ export class ManagersContainer {
    * Initializes all managers with the given workspace URI
    * @param workspaceUri - The workspace folder URI
    * @param context - VS Code extension context (for CourseExplorer)
+   * @param extensionPath - Path to the extension root directory
    */
-  initialize(workspaceUri: vscode.Uri, context: vscode.ExtensionContext): void {
+  initialize(workspaceUri: vscode.Uri, context: vscode.ExtensionContext, extensionPath: string): void {
     this._courseManager = new CourseManager(workspaceUri);
-    this._lectureManager = new LectureManager(this._courseManager);
+    this._lectureManager = new LectureManager(this._courseManager, extensionPath);
     this._buildManager = new BuildManager(this._courseManager, this._lectureManager);
     this._courseExplorer = new CourseExplorer(context);
   }

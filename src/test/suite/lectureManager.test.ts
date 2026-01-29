@@ -6,6 +6,7 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs/promises';
 import { LectureManager } from '../../managers/LectureManager';
 import { CourseManager } from '../../managers/CourseManager';
 import { SLIDES_DIR, LECTURE_SLIDES, LECTURE_PACKAGE, TEMPLATE_DIR, TEMPLATE_SLIDES, TEMPLATE_PACKAGE } from '../../constants';
@@ -24,13 +25,14 @@ async function createManagerForTest(testName: string): Promise<{ manager: Lectur
   const tempDir = await createTestDir('manager', testName);
   const uri = vscode.Uri.file(tempDir);
   const courseManager = new CourseManager(uri);
-  const manager = new LectureManager(courseManager);
+  const extensionPath = path.resolve(__dirname, '../../..');
+  const manager = new LectureManager(courseManager, extensionPath);
   return { manager, tempDir };
 }
 
 // ============================================
 // LectureManager Test Suite
-// ============================================
+// ============================================ 
 
 suite('LectureManager Test Suite', () => {
   // ============================================
@@ -337,15 +339,18 @@ suite('LectureManager Test Suite', () => {
       }
     });
 
-    test('should throw when template file does not exist', async () => {
+    test('should successfully copy template (bundled with extension)', async () => {
       const { manager, tempDir } = await createManagerForTest('copySlidesTemplate');
       try {
         await manager.createLectureDir('lecture-1');
+        // Templates are now bundled with the extension
+        await manager.copySlidesTemplate('lecture-1', 'Test Title');
 
-        await assert.rejects(
-          async () => await manager.copySlidesTemplate('lecture-1', 'Title'),
-          /Failed to read template/
+        const content = await fs.readFile(
+          path.join(tempDir, SLIDES_DIR, 'lecture-1', LECTURE_SLIDES),
+          'utf-8'
         );
+        assert.ok(content.includes('title: Test Title'));
       } finally {
         await cleanupTestDir(tempDir);
       }
@@ -403,15 +408,18 @@ suite('LectureManager Test Suite', () => {
       }
     });
 
-    test('should throw when template file does not exist', async () => {
+    test('should successfully copy package.json (bundled with extension)', async () => {
       const { manager, tempDir } = await createManagerForTest('copyPackageJson');
       try {
         await manager.createLectureDir('lecture-1');
+        // Templates are now bundled with the extension
+        await manager.copyPackageJson('lecture-1');
 
-        await assert.rejects(
-          async () => await manager.copyPackageJson('lecture-1'),
-          /Failed to read template/
+        const content = await fs.readFile(
+          path.join(tempDir, SLIDES_DIR, 'lecture-1', LECTURE_PACKAGE),
+          'utf-8'
         );
+        assert.ok(content.includes('"name": "lecture-1"'));
       } finally {
         await cleanupTestDir(tempDir);
       }

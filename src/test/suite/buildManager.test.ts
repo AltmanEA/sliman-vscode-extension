@@ -143,7 +143,8 @@ async function createTestCourse(tempDir: string): Promise<{
 }> {
   const uri = vscode.Uri.file(tempDir);
   const courseManager = new CourseManager(uri);
-  const lectureManager = new LectureManager(courseManager);
+  const extensionPath = path.resolve(__dirname, '../../..');
+  const lectureManager = new LectureManager(courseManager, extensionPath);
   
   // Create sliman.json
   await fs.writeFile(path.join(tempDir, SLIMAN_FILENAME), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');

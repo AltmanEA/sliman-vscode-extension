@@ -87,7 +87,7 @@ export class CourseExplorer {
           })
         );
         this._refreshCommandRegistered = true;
-      } catch (error) {
+      } catch {
         // Command already registered, ignore
         console.log('[CourseExplorer] Refresh command already registered');
         this._refreshCommandRegistered = true;
