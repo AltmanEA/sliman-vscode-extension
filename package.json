@@ -67,6 +67,11 @@
         "category": "sli.dev Course"
       },
       {
+        "command": "sliman.deleteLecture",
+        "title": "Delete Lecture",
+        "category": "sli.dev Course"
+      },
+      {
         "command": "sliman.buildCourse",
         "title": "Build Course",
         "category": "sli.dev Course"

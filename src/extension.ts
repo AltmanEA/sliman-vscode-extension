@@ -11,6 +11,7 @@ import {
   buildLecture,
   openSlides,
   editLecture,
+  deleteLecture,
   buildCourse,
   setupPages,
   initializeCommands
@@ -51,6 +52,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       vscode.commands.registerCommand('sliman.buildLecture', buildLecture),
       vscode.commands.registerCommand('sliman.openSlides', openSlides),
       vscode.commands.registerCommand('sliman.editLecture', editLecture),
+      vscode.commands.registerCommand('sliman.deleteLecture', deleteLecture),
       vscode.commands.registerCommand('sliman.buildCourse', buildCourse),
       vscode.commands.registerCommand('sliman.setupPages', setupPages)
     ];

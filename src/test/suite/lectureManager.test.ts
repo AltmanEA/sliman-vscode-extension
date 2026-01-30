@@ -729,4 +729,203 @@ This is a slide without title field.`;
       }
     });
   });
+
+  // ============================================
+  // Delete Lecture Tests
+  // ============================================
+
+  suite('deleteLecture', () => {
+    test('should delete lecture directory from slides/', async () => {
+      const { manager, tempDir } = await createManagerForTest('deleteLecture');
+      try {
+        const fs = await import('fs/promises');
+        // Create lecture directory with files
+        const lectureDir = path.join(tempDir, SLIDES_DIR, 'test-lecture');
+        await fs.mkdir(lectureDir, { recursive: true });
+        await fs.writeFile(path.join(lectureDir, 'slides.md'), '# Test', 'utf-8');
+        await fs.writeFile(path.join(lectureDir, 'package.json'), '{}', 'utf-8');
+
+        // Verify lecture exists before deletion
+        assert.strictEqual(await manager.lectureExists('test-lecture'), true);
+
+        await manager.deleteLecture('test-lecture');
+
+        // Verify lecture directory is deleted
+        assert.strictEqual(await manager.lectureExists('test-lecture'), false);
+
+        // Verify files are deleted
+        const slidesExists = await fs.stat(path.join(lectureDir, 'slides.md')).then(() => true).catch(() => false);
+        const packageExists = await fs.stat(path.join(lectureDir, 'package.json')).then(() => true).catch(() => false);
+
+        assert.strictEqual(slidesExists, false, 'slides.md should be deleted');
+        assert.strictEqual(packageExists, false, 'package.json should be deleted');
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should remove lecture from slides.json', async () => {
+      const { manager, tempDir } = await createManagerForTest('deleteLecture');
+      try {
+        const fs = await import('fs/promises');
+        // Create lecture directory
+        await fs.mkdir(path.join(tempDir, SLIDES_DIR, 'test-lecture'), { recursive: true });
+        await fs.writeFile(path.join(tempDir, SLIDES_DIR, 'test-lecture', 'slides.md'), '# Test', 'utf-8');
+        
+        // Create slides.json with the lecture
+        const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
+        await fs.mkdir(path.dirname(slidesJsonPath), { recursive: true });
+        await fs.writeFile(slidesJsonPath, JSON.stringify({
+          slides: [
+            { name: 'test-lecture', title: 'Test Lecture' },
+            { name: 'other-lecture', title: 'Other Lecture' }
+          ]
+        }), 'utf-8');
+
+        await manager.deleteLecture('test-lecture');
+
+        // Verify slides.json was updated
+        const content = await fs.readFile(slidesJsonPath, 'utf-8');
+        const parsed = JSON.parse(content);
+        assert.strictEqual(parsed.slides.length, 1, 'Should have one lecture left');
+        assert.strictEqual(parsed.slides[0].name, 'other-lecture', 'Should keep other lecture');
+        assert.strictEqual(parsed.slides[0].title, 'Other Lecture', 'Should keep other lecture title');
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should remove built lecture from dist/ if exists', async () => {
+      const { manager, tempDir } = await createManagerForTest('deleteLecture');
+      try {
+        const fs = await import('fs/promises');
+        // Create lecture directory
+        await fs.mkdir(path.join(tempDir, SLIDES_DIR, 'test-lecture'), { recursive: true });
+        await fs.writeFile(path.join(tempDir, SLIDES_DIR, 'test-lecture', 'slides.md'), '# Test', 'utf-8');
+        
+        // Create built lecture directory
+        const builtDir = path.join(tempDir, BUILT_DIR, 'test-lecture');
+        await fs.mkdir(builtDir, { recursive: true });
+        await fs.writeFile(path.join(builtDir, 'index.html'), '<html>Built Lecture</html>', 'utf-8');
+
+        // Verify built directory exists before deletion
+        const builtExists = await fs.stat(builtDir).then(() => true).catch(() => false);
+        assert.strictEqual(builtExists, true);
+
+        await manager.deleteLecture('test-lecture');
+
+        // Verify built directory is deleted
+        const builtExistsAfter = await fs.stat(builtDir).then(() => true).catch(() => false);
+        assert.strictEqual(builtExistsAfter, false, 'Built lecture directory should be deleted');
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should not fail when built lecture directory does not exist', async () => {
+      const { manager, tempDir } = await createManagerForTest('deleteLecture');
+      try {
+        const fs = await import('fs/promises');
+        // Create lecture directory but no built directory
+        await fs.mkdir(path.join(tempDir, SLIDES_DIR, 'test-lecture'), { recursive: true });
+        await fs.writeFile(path.join(tempDir, SLIDES_DIR, 'test-lecture', 'slides.md'), '# Test', 'utf-8');
+
+        // Should not throw when built directory doesn't exist
+        await assert.doesNotThrow(
+          async () => await manager.deleteLecture('test-lecture'),
+          'Should not throw when built directory does not exist'
+        );
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should throw error when lecture does not exist', async () => {
+      const { manager, tempDir } = await createManagerForTest('deleteLecture');
+      try {
+        await assert.rejects(
+          async () => await manager.deleteLecture('nonexistent-lecture'),
+          /does not exist/
+        );
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should update slides.json when lecture is only one in list', async () => {
+      const { manager, tempDir } = await createManagerForTest('deleteLecture');
+      try {
+        const fs = await import('fs/promises');
+        // Create lecture directory
+        await fs.mkdir(path.join(tempDir, SLIDES_DIR, 'only-lecture'), { recursive: true });
+        await fs.writeFile(path.join(tempDir, SLIDES_DIR, 'only-lecture', 'slides.md'), '# Test', 'utf-8');
+        
+        // Create slides.json with only this lecture
+        const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
+        await fs.mkdir(path.dirname(slidesJsonPath), { recursive: true });
+        await fs.writeFile(slidesJsonPath, JSON.stringify({
+          slides: [
+            { name: 'only-lecture', title: 'Only Lecture' }
+          ]
+        }), 'utf-8');
+
+        await manager.deleteLecture('only-lecture');
+
+        // Verify slides.json has empty slides array
+        const content = await fs.readFile(slidesJsonPath, 'utf-8');
+        const parsed = JSON.parse(content);
+        assert.strictEqual(parsed.slides.length, 0, 'Should have empty slides array');
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should handle unicode lecture names', async () => {
+      const { manager, tempDir } = await createManagerForTest('deleteLecture');
+      try {
+        const fs = await import('fs/promises');
+        // Create lecture directory with unicode name
+        const lectureName = 'тест-лекция';
+        await fs.mkdir(path.join(tempDir, SLIDES_DIR, lectureName), { recursive: true });
+        await fs.writeFile(path.join(tempDir, SLIDES_DIR, lectureName, 'slides.md'), '# Тест', 'utf-8');
+
+        // Verify lecture exists before deletion
+        assert.strictEqual(await manager.lectureExists(lectureName), true);
+
+        await manager.deleteLecture(lectureName);
+
+        // Verify lecture directory is deleted
+        assert.strictEqual(await manager.lectureExists(lectureName), false);
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should not throw during deletion process', async () => {
+      const { manager, tempDir } = await createManagerForTest('deleteLecture');
+      try {
+        const fs = await import('fs/promises');
+        
+        // Create lecture directory
+        const lectureDir = path.join(tempDir, SLIDES_DIR, 'test-lecture');
+        await fs.mkdir(lectureDir, { recursive: true });
+        await fs.writeFile(path.join(lectureDir, 'slides.md'), '# Test', 'utf-8');
+        
+        // Create slides.json with the lecture
+        const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
+        await fs.mkdir(path.dirname(slidesJsonPath), { recursive: true });
+        await fs.writeFile(slidesJsonPath, JSON.stringify({
+          slides: [{ name: 'test-lecture', title: 'Test Lecture' }]
+        }), 'utf-8');
+
+        // Should not throw
+        await assert.doesNotThrow(
+          async () => await manager.deleteLecture('test-lecture'),
+          'Should not throw during deletion process'
+        );
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+  });
 });

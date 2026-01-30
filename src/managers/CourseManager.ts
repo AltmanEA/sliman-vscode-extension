@@ -215,6 +215,20 @@ export class CourseManager {
   }
 
   /**
+   * Removes a lecture entry from slides.json
+   * @param name - Lecture folder name (e.g., "lecture-1")
+   * @returns Promise that resolves when complete
+   */
+  async removeLecture(name: string): Promise<void> {
+    const config = await this.readSlidesJson();
+    const lectures: LectureInfo[] = config?.slides || [];
+
+    const filteredLectures = lectures.filter((l) => l.name !== name);
+
+    await this.writeSlidesJson({ slides: filteredLectures });
+  }
+
+  /**
    * Reads both course configuration at once
    * Useful for displaying course overview information
    * @returns Promise that resolves to CourseData with courseName and slides

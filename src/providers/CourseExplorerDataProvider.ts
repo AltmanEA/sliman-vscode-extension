@@ -267,9 +267,9 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
   }
 
   /**
-   * Builds command items for a lecture (View, Edit, Build)
+   * Builds command items for a lecture (View, Edit, Build, Delete)
    * @param lectureName - Lecture folder name
-   * @returns Array with View, Edit, and Build action items
+   * @returns Array with View, Edit, Build, and Delete action items
    */
   private buildLectureCommands(lectureName: string): CourseTreeItem[] {
     // View command - only opens slides.md
@@ -290,6 +290,13 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
     const buildCommand: vscode.Command = {
       command: 'sliman.buildLecture',
       title: 'Build',
+      arguments: [lectureName],
+    };
+
+    // Delete command - deletes lecture with confirmation
+    const deleteCommand: vscode.Command = {
+      command: 'sliman.deleteLecture',
+      title: 'Delete',
       arguments: [lectureName],
     };
 
@@ -317,6 +324,14 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
         icon: '$(tools)',
         command: buildCommand,
         contextValue: 'lecture-build-command',
+      },
+      {
+        id: `lecture-command-delete-${lectureName}`,
+        label: 'Delete',
+        type: 'action',
+        icon: '$(trash)',
+        command: deleteCommand,
+        contextValue: 'lecture-delete-command',
       },
     ];
   }

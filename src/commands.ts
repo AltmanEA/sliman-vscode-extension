@@ -516,6 +516,85 @@ export async function editLecture(name: string): Promise<void> {
 }
 
 /**
+ * Command: sliman.deleteLecture
+ * Deletes a lecture with confirmation dialog
+ * @param name - Lecture folder name (passed from Tree View)
+ */
+export async function deleteLecture(name: string): Promise<void> {
+  if (!outputChannel) {
+    throw new Error('Commands not initialized');
+  }
+
+  const channel = outputChannel;
+  channel.appendLine(`Command: deleteLecture: ${name}`);
+  channel.show();
+
+  const courseManager = managersContainer.courseManager;
+  const lectureManager = managersContainer.lectureManager;
+
+  if (!courseManager || !lectureManager) {
+    channel.appendLine('Managers not initialized');
+    void vscode.window.showErrorMessage('Managers not initialized');
+    return;
+  }
+
+  // Step 1: Check if we're in a course root
+  const isRoot = await courseManager.isCourseRoot();
+  if (!isRoot) {
+    channel.appendLine('Not in a course root directory');
+    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with dist/slides.json');
+    return;
+  }
+
+  // Step 2: Check if lecture exists
+  channel.appendLine(`Checking lecture: ${name}`);
+  const lectureExists = await lectureManager.lectureExists(name);
+  if (!lectureExists) {
+    channel.appendLine(`Lecture "${name}" does not exist`);
+    void vscode.window.showErrorMessage(`Lecture "${name}" does not exist`);
+    return;
+  }
+  channel.appendLine(`Lecture "${name}" exists`);
+
+  // Step 3: Get lecture title for confirmation dialog
+  let lectureTitle = name;
+  try {
+    lectureTitle = await lectureManager.readTitleFromSlides(name);
+  } catch {
+    // If we can't read the title, use the folder name
+    channel.appendLine(`Warning: Could not read lecture title, using folder name`);
+  }
+
+  // Step 4: Ask for confirmation
+  const confirm = await vscode.window.showWarningMessage(
+    `Are you sure you want to delete lecture "${lectureTitle}" (${name})? This action cannot be undone.`,
+    { modal: true },
+    'Delete', 'Cancel'
+  );
+
+  if (confirm !== 'Delete') {
+    channel.appendLine('Lecture deletion cancelled by user');
+    return;
+  }
+
+  // Step 5: Delete the lecture
+  channel.appendLine(`Deleting lecture: ${name}`);
+  try {
+    await lectureManager.deleteLecture(name);
+    channel.appendLine('Lecture deleted successfully');
+    void vscode.window.showInformationMessage(`Lecture "${lectureTitle}" deleted`);
+
+    // Refresh Course Explorer tree view
+    managersContainer.refreshCourseExplorer();
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    channel.appendLine(`Failed to delete lecture: ${errorMessage}`);
+    void vscode.window.showErrorMessage(`Failed to delete lecture: ${errorMessage}`);
+  }
+}
+
+/**
  * Command: sliman.buildCourse
  * Builds entire course to static site
  */

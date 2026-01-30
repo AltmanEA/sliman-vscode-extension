@@ -22,6 +22,7 @@ import {
   buildLecture,
   openSlides,
   editLecture,
+  deleteLecture,
   buildCourse,
   setupPages
 } from '../../commands';
@@ -91,6 +92,10 @@ suite('Commands Module', () => {
 
     test('should export editLecture function', () => {
       assert.strictEqual(typeof editLecture, 'function', 'editLecture should be exported as function');
+    });
+
+    test('should export deleteLecture function', () => {
+      assert.strictEqual(typeof deleteLecture, 'function', 'deleteLecture should be exported as function');
     });
 
     test('should export initializeCommands function', () => {
@@ -200,9 +205,17 @@ suite('Commands Module', () => {
       assert.strictEqual(command.category, 'sli.dev Course', 'Should have correct category');
     });
 
-    test('should have exactly 10 commands registered', () => {
+    test('should register sliman.deleteLecture command', () => {
+      const command = packageJson.contributes.commands.find(
+        (c) => c.command === 'sliman.deleteLecture'
+      );
+      assert.ok(command, 'sliman.deleteLecture should be registered');
+      assert.strictEqual(command.category, 'sli.dev Course', 'Should have correct category');
+    });
+
+    test('should have exactly 11 commands registered', () => {
       const commandCount = packageJson.contributes.commands.length;
-      assert.strictEqual(commandCount, 10, 'Should have exactly 10 commands registered');
+      assert.strictEqual(commandCount, 11, 'Should have exactly 11 commands registered');
     });
   });
 
@@ -280,9 +293,19 @@ suite('Commands Module', () => {
         commandsContent.includes('export async function setupPages'),
         'Should export setupPages function'
       );
+    });
+
+    test('should export editLecture', () => {
       assert.ok(
         commandsContent.includes('export async function editLecture'),
         'Should export editLecture function'
+      );
+    });
+
+    test('should export deleteLecture', () => {
+      assert.ok(
+        commandsContent.includes('export async function deleteLecture'),
+        'Should export deleteLecture function'
       );
     });
 
@@ -635,6 +658,10 @@ suite('Commands Module', () => {
 
     test('editLecture should not throw', async () => {
       await editLecture('test'); // Should not throw
+    });
+
+    test('deleteLecture should not throw', async () => {
+      await deleteLecture('test'); // Should not throw
     });
 
     test('scanCourse should not throw in non-course context', async () => {

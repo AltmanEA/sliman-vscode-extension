@@ -211,7 +211,7 @@ suite('CourseExplorer Test Suite', () => {
 
       // Get command items directly under lecture (no Actions folder)
       const commandItems = await dataProvider.getChildren(aboutLecture);
-      assert.strictEqual(commandItems.length, 3, 'Should return 3 commands (View, Edit, Build)');
+      assert.strictEqual(commandItems.length, 4, 'Should return 4 commands (View, Edit, Build, Delete)');
       
       // Check View command
       const viewCommand = commandItems.find(item => item.id === 'lecture-command-view-about');
@@ -236,6 +236,14 @@ suite('CourseExplorer Test Suite', () => {
       assert.strictEqual(buildCommand?.type, 'action', 'Type should be "action"');
       assert.strictEqual(buildCommand?.command?.command, 'sliman.buildLecture', 'Command should be sliman.buildLecture');
       assert.strictEqual(buildCommand?.icon, '$(tools)', 'Icon should be $(tools)');
+
+      // Check Delete command
+      const deleteCommand = commandItems.find(item => item.id === 'lecture-command-delete-about');
+      assert.ok(deleteCommand, 'Delete command should exist');
+      assert.strictEqual(deleteCommand?.label, 'Delete', 'Label should be "Delete"');
+      assert.strictEqual(deleteCommand?.type, 'action', 'Type should be "action"');
+      assert.strictEqual(deleteCommand?.command?.command, 'sliman.deleteLecture', 'Command should be sliman.deleteLecture');
+      assert.strictEqual(deleteCommand?.icon, '$(trash)', 'Icon should be $(trash)');
     });
 
     test('should handle empty lectures list', async () => {

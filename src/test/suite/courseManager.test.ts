@@ -538,6 +538,180 @@ suite('CourseManager Test Suite', () => {
         }
       });
     });
+
+    suite('removeLecture', () => {
+      test('should remove lecture from slides.json', async () => {
+        const { manager, tempDir } = await createManagerForTest('removeLecture');
+        try {
+          const fs = await import('fs/promises');
+          // Create slides.json with multiple lectures
+          const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
+          await fs.mkdir(path.dirname(slidesJsonPath), { recursive: true });
+          await fs.writeFile(slidesJsonPath, JSON.stringify({
+            slides: [
+              { name: 'lecture-1', title: 'First Lecture' },
+              { name: 'lecture-2', title: 'Second Lecture' },
+              { name: 'lecture-3', title: 'Third Lecture' }
+            ]
+          }), 'utf-8');
+
+          await manager.removeLecture('lecture-2');
+
+          // Verify lecture was removed
+          const content = await fs.readFile(slidesJsonPath, 'utf-8');
+          const parsed = JSON.parse(content);
+          assert.strictEqual(parsed.slides.length, 2, 'Should have 2 lectures left');
+          assert.strictEqual(parsed.slides[0].name, 'lecture-1');
+          assert.strictEqual(parsed.slides[0].title, 'First Lecture');
+          assert.strictEqual(parsed.slides[1].name, 'lecture-3');
+          assert.strictEqual(parsed.slides[1].title, 'Third Lecture');
+        } finally {
+          await cleanupTestDir(tempDir);
+        }
+      });
+
+      test('should handle removal of non-existent lecture', async () => {
+        const { manager, tempDir } = await createManagerForTest('removeLecture');
+        try {
+          const fs = await import('fs/promises');
+          // Create slides.json with lectures
+          const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
+          await fs.mkdir(path.dirname(slidesJsonPath), { recursive: true });
+          await fs.writeFile(slidesJsonPath, JSON.stringify({
+            slides: [
+              { name: 'lecture-1', title: 'First Lecture' },
+              { name: 'lecture-2', title: 'Second Lecture' }
+            ]
+          }), 'utf-8');
+
+          await manager.removeLecture('nonexistent-lecture');
+
+          // Verify slides.json unchanged
+          const content = await fs.readFile(slidesJsonPath, 'utf-8');
+          const parsed = JSON.parse(content);
+          assert.strictEqual(parsed.slides.length, 2, 'Should still have 2 lectures');
+        } finally {
+          await cleanupTestDir(tempDir);
+        }
+      });
+
+      test('should create empty slides array when removing last lecture', async () => {
+        const { manager, tempDir } = await createManagerForTest('removeLecture');
+        try {
+          const fs = await import('fs/promises');
+          // Create slides.json with only one lecture
+          const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
+          await fs.mkdir(path.dirname(slidesJsonPath), { recursive: true });
+          await fs.writeFile(slidesJsonPath, JSON.stringify({
+            slides: [
+              { name: 'only-lecture', title: 'Only Lecture' }
+            ]
+          }), 'utf-8');
+
+          await manager.removeLecture('only-lecture');
+
+          // Verify slides.json has empty slides array
+          const content = await fs.readFile(slidesJsonPath, 'utf-8');
+          const parsed = JSON.parse(content);
+          assert.strictEqual(parsed.slides.length, 0, 'Should have empty slides array');
+        } finally {
+          await cleanupTestDir(tempDir);
+        }
+      });
+
+      test('should handle slides.json that does not exist', async () => {
+        const { manager, tempDir } = await createManagerForTest('removeLecture');
+        try {
+          // Don't create slides.json
+          await manager.removeLecture('lecture-1');
+
+          // Should not throw - slides.json should be created with empty slides
+          const fs = await import('fs/promises');
+          const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
+          const content = await fs.readFile(slidesJsonPath, 'utf-8');
+          const parsed = JSON.parse(content);
+          assert.strictEqual(parsed.slides.length, 0, 'Should have empty slides array');
+        } finally {
+          await cleanupTestDir(tempDir);
+        }
+      });
+
+      test('should handle slides.json with malformed JSON', async () => {
+        const { manager, tempDir } = await createManagerForTest('removeLecture');
+        try {
+          const fs = await import('fs/promises');
+          // Create malformed slides.json
+          const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
+          await fs.mkdir(path.dirname(slidesJsonPath), { recursive: true });
+          await fs.writeFile(slidesJsonPath, '{ invalid json', 'utf-8');
+
+          await manager.removeLecture('lecture-1');
+
+          // Should not throw - should create valid empty slides.json
+          const content = await fs.readFile(slidesJsonPath, 'utf-8');
+          const parsed = JSON.parse(content);
+          assert.strictEqual(parsed.slides.length, 0, 'Should have empty slides array');
+        } finally {
+          await cleanupTestDir(tempDir);
+        }
+      });
+
+      test('should handle unicode lecture names', async () => {
+        const { manager, tempDir } = await createManagerForTest('removeLecture');
+        try {
+          const fs = await import('fs/promises');
+          // Create slides.json with unicode lecture names
+          const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
+          await fs.mkdir(path.dirname(slidesJsonPath), { recursive: true });
+          await fs.writeFile(slidesJsonPath, JSON.stringify({
+            slides: [
+              { name: 'lecture-тест', title: 'Тестовая лекция' },
+              { name: 'lecture-测试', title: '测试讲座' }
+            ]
+          }), 'utf-8');
+
+          await manager.removeLecture('lecture-тест');
+
+          // Verify unicode lecture was removed
+          const content = await fs.readFile(slidesJsonPath, 'utf-8');
+          const parsed = JSON.parse(content);
+          assert.strictEqual(parsed.slides.length, 1, 'Should have 1 lecture left');
+          assert.strictEqual(parsed.slides[0].name, 'lecture-测试');
+          assert.strictEqual(parsed.slides[0].title, '测试讲座');
+        } finally {
+          await cleanupTestDir(tempDir);
+        }
+      });
+
+      test('should preserve other lecture properties', async () => {
+        const { manager, tempDir } = await createManagerForTest('removeLecture');
+        try {
+          const fs = await import('fs/promises');
+          // Create slides.json with lectures that have additional properties
+          const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
+          await fs.mkdir(path.dirname(slidesJsonPath), { recursive: true });
+          await fs.writeFile(slidesJsonPath, JSON.stringify({
+            slides: [
+              { name: 'lecture-1', title: 'First Lecture', description: 'Introduction', order: 1 },
+              { name: 'lecture-2', title: 'Second Lecture', description: 'Main content', order: 2 }
+            ]
+          }), 'utf-8');
+
+          await manager.removeLecture('lecture-1');
+
+          // Verify remaining lecture keeps all properties
+          const content = await fs.readFile(slidesJsonPath, 'utf-8');
+          const parsed = JSON.parse(content);
+          assert.strictEqual(parsed.slides.length, 1);
+          assert.strictEqual(parsed.slides[0].name, 'lecture-2');
+          assert.strictEqual(parsed.slides[0].title, 'Second Lecture');
+          assert.strictEqual(parsed.slides[0].description, 'Main content');
+          assert.strictEqual(parsed.slides[0].order, 2);
+        } finally {
+          await cleanupTestDir(tempDir);
+        }
+      });
+    });
   });
 
   // ============================================

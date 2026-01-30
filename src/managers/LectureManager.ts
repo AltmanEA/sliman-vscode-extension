@@ -353,4 +353,54 @@ export class LectureManager {
 
     return name;
   }
+
+  /**
+   * Deletes a lecture completely
+   * Removes lecture directory from slides/ and built/ directories
+   * Updates slides.json to remove lecture entry
+   * @param name - Lecture folder name
+   * @returns Promise that resolves when lecture is deleted
+   * @throws Error if lecture doesn't exist or deletion fails
+   */
+  async deleteLecture(name: string): Promise<void> {
+    this.log(`Deleting lecture: ${name}`);
+
+    // Check if lecture exists
+    if (!await this.lectureExists(name)) {
+      throw new Error(`Lecture "${name}" does not exist`);
+    }
+
+    // Step 1: Remove lecture directory from slides/
+    const lectureDir = this.getLectureDir(name);
+    try {
+      await vscode.workspace.fs.delete(lectureDir, { recursive: true, useTrash: false });
+      this.log(`Removed lecture directory: ${lectureDir.fsPath}`);
+    } catch (error) {
+      throw new Error(`Failed to remove lecture directory: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    // Step 2: Remove built lecture from dist/ (if exists)
+    const builtLectureDir = vscode.Uri.joinPath(this.courseManager.getBuiltCourseDir(), name);
+    try {
+      const stat = await vscode.workspace.fs.stat(builtLectureDir);
+      if (stat.type === vscode.FileType.Directory) {
+        await vscode.workspace.fs.delete(builtLectureDir, { recursive: true, useTrash: false });
+        this.log(`Removed built lecture directory: ${builtLectureDir.fsPath}`);
+      }
+    } catch {
+      // Built directory doesn't exist, that's fine
+      this.log(`Built lecture directory not found (normal if lecture wasn't built): ${builtLectureDir.fsPath}`);
+    }
+
+    // Step 3: Update course configuration (remove from slides.json)
+    try {
+      await this.courseManager.removeLecture(name);
+      this.log(`Removed lecture from slides.json: ${name}`);
+    } catch (error) {
+      this.log(`Warning: Failed to remove lecture from slides.json: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Don't throw here, lecture directory is already deleted
+    }
+
+    this.log(`Lecture "${name}" deleted successfully!`);
+  }
 }
