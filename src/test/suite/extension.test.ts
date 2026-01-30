@@ -3,6 +3,12 @@
  * Tests command registration, activation, and output channel creation.
  * 
  * These tests run in the VS Code Extension Host environment.
+ * 
+ * New structure:
+ * - sliman.json contains course_name (in course root)
+ * - {course_name}/slides.json contains slides array
+ * - {course_name}/ directory for built course files
+ * - Built lectures are copied from {lecture}/dist/ to {course_name}/{lecture}/
  */
 
 import * as assert from 'assert';
@@ -261,7 +267,7 @@ suite('Extension Registration', () => {
 
     test('should handle workspace without course root gracefully', async () => {
       // This test verifies error handling when workspace is not a course root
-      // Create a temporary workspace without dist/slides.json
+      // Create a temporary workspace without sliman.json
       const tempDir = await createTestDir('extension', 'non-course-workspace');
       try {
         const extension = vscode.extensions.getExtension(EXTENSION_ID);

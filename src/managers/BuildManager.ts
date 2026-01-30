@@ -274,9 +274,9 @@ export class BuildManager {
 
       this.appendLine('✓ Presentation built');
 
-      // Copy to dist directory
+      // Copy to {course_name} directory
       this.appendProgress({ lecture: name, stage: 'copying' });
-      this.appendLine('Copying to dist/...');
+      this.appendLine('Copying to course directory...');
 
       await this.copyLectureToDist(name, lecturePath);
 
@@ -306,15 +306,21 @@ export class BuildManager {
   }
 
   /**
-   * Copies built lecture files to dist/{name}/ directory
+   * Copies built lecture files to {course_name}/{name}/ directory
    * Copies only the slidev build output from {lecturePath}/dist/
    * @param lectureName - Lecture folder name
    * @param sourcePath - Source directory with built files
    * @returns Promise resolving when copy completes
    */
   private async copyLectureToDist(lectureName: string, sourcePath: string): Promise<void> {
-    const distDir = this.courseManager.getBuiltCourseDir();
-    const destDir = vscode.Uri.joinPath(distDir, lectureName);
+    // Get course name for directory structure
+    const courseName = await this.courseManager.readCourseName();
+    if (!courseName) {
+      throw new Error('Course name not found in sliman.json');
+    }
+    
+    const courseDir = this.courseManager.getBuiltCourseDirWithName(courseName);
+    const destDir = vscode.Uri.joinPath(courseDir, lectureName);
 
     // Clear destination directory first
     try {
@@ -411,8 +417,8 @@ export class BuildManager {
 
         this.appendLine(`✓ Lecture "${lectureName}" built`);
 
-        // Copy to dist directory
-        this.appendLine(`Copying "${lectureName}" to dist/...`);
+        // Copy to course directory
+        this.appendLine(`Copying "${lectureName}" to course directory...`);
         await this.copyLectureToDist(lectureName, lecturePath);
       }
 
@@ -475,7 +481,7 @@ export class BuildManager {
       const titleFromSlides = await this.lectureManager.readTitleFromSlides(lectureName);
       this.appendLine(`Title from slides.md: "${titleFromSlides}"`);
       
-      // Read current slides.json
+      // Read current slides.json (course name is no longer in slides.json)
       const slidesConfig = await this.courseManager.readSlidesJson();
       if (!slidesConfig || !slidesConfig.slides) {
         this.appendLine('Warning: slides.json not found or invalid, skipping title update');
@@ -512,12 +518,19 @@ export class BuildManager {
 
   /**
    * Updates the main course index.html with current lecture list
-   * Reads slides.json and generates HTML list of lectures
+   * Reads sliman.json for course name and {course_name}/slides.json for lecture list
    * @returns Promise resolving when update completes
    */
   private async updateCourseIndexHtml(): Promise<void> {
-    const builtCourseDir = this.courseManager.getBuiltCourseDir();
-    const indexHtmlPath = vscode.Uri.joinPath(builtCourseDir, 'index.html');
+    // Get course name from sliman.json
+    const courseName = await this.courseManager.readCourseName();
+    if (!courseName) {
+      this.appendLine('Course name not found in sliman.json');
+      return;
+    }
+
+    const courseDir = this.courseManager.getBuiltCourseDirWithName(courseName);
+    const indexHtmlPath = vscode.Uri.joinPath(courseDir, 'index.html');
 
     // Read slides.json to get lecture list (force read from filesystem)
     const slidesConfig = await this.courseManager.readSlidesJson();

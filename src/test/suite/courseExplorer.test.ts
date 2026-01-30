@@ -61,7 +61,7 @@ class MockCourseManager implements Partial<CourseManager> {
   }
 
   /**
-   * Read course name from dist/slides.json (mock)
+   * Read course name from sliman.json (mock)
    */
   async readCourseName(): Promise<string | null> {
     this.callCount++;
@@ -275,7 +275,7 @@ suite('CourseExplorer Test Suite', () => {
       const actionsFolder = rootItems.find(item => item.id === 'actions-folder');
       const actionItems = await dataProvider.getChildren(actionsFolder);
       
-      assert.strictEqual(actionItems.length, 3, 'Should return 3 actions');
+      assert.strictEqual(actionItems.length, 4, 'Should return 4 actions');
 
       // Add Lecture action
       const addLectureAction = actionItems.find(item => item.id === 'action-add-lecture');
@@ -293,6 +293,13 @@ suite('CourseExplorer Test Suite', () => {
       const pagesAction = actionItems.find(item => item.id === 'action-setup-pages');
       assert.ok(pagesAction, 'Setup GitHub Pages action should exist');
       assert.strictEqual(pagesAction?.label, 'Setup GitHub Pages', 'Pages action label should be correct');
+
+      // View Course action
+      const viewCourseAction = actionItems.find(item => item.id === 'action-view-course');
+      assert.ok(viewCourseAction, 'View Course action should exist');
+      assert.strictEqual(viewCourseAction?.label, 'View Course', 'View Course action label should be correct');
+      assert.strictEqual(viewCourseAction?.command?.command, 'sliman.viewCourse', 'Command should be sliman.viewCourse');
+      assert.strictEqual(viewCourseAction?.icon, '$(globe)', 'Icon should be $(globe)');
     });
 
     test('should trigger refresh event', async () => {

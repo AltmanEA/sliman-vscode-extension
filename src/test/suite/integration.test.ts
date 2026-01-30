@@ -17,7 +17,7 @@ import { CourseManager } from '../../managers/CourseManager';
 import { LectureManager } from '../../managers/LectureManager';
 import { ProcessHelper } from '../../utils/process';
 import type { ICommandExecutor, ProcessResult, ProcessOptions, StreamHandler } from '../../utils/process';
-import { SLIDES_DIR, BUILT_DIR, SLIDES_FILENAME, TEMPLATE_DIR, TEMPLATE_SLIDES, TEMPLATE_PACKAGE } from '../../constants';
+import { SLIDES_DIR, SLIDES_FILENAME, TEMPLATE_DIR, TEMPLATE_SLIDES, TEMPLATE_PACKAGE } from '../../constants';
 
 // ============================================
 // Mock Executor for Testing
@@ -158,13 +158,20 @@ async function createTestCourse(tempDir: string): Promise<{
   // Create slides directory
   await fs.mkdir(path.join(tempDir, SLIDES_DIR), { recursive: true });
 
-  // Create built (dist) directory
-  await fs.mkdir(path.join(tempDir, BUILT_DIR), { recursive: true });
-
-  // Create dist/slides.json with course_name
+  // Create sliman.json in course root
   await fs.writeFile(
-    path.join(tempDir, BUILT_DIR, SLIDES_FILENAME),
-    JSON.stringify({ course_name: 'Test Course', slides: [] }, null, 2),
+    path.join(tempDir, 'sliman.json'),
+    JSON.stringify({ course_name: 'Test Course' }, null, 2),
+    'utf-8'
+  );
+
+  // Create Test Course directory for built files
+  await fs.mkdir(path.join(tempDir, 'Test Course'), { recursive: true });
+
+  // Create {course_name}/slides.json with slides array only
+  await fs.writeFile(
+    path.join(tempDir, 'Test Course', SLIDES_FILENAME),
+    JSON.stringify({ slides: [] }, null, 2),
     'utf-8'
   );
 
@@ -201,10 +208,15 @@ async function createTemplateDir(tempDir: string): Promise<void> {
 /** Sync version of createTestCourse for mock lectureExists */
 function createTestCourseSync(tempDir: string): void {
   fsSync.mkdirSync(path.join(tempDir, SLIDES_DIR), { recursive: true });
-  fsSync.mkdirSync(path.join(tempDir, BUILT_DIR), { recursive: true });
   fsSync.writeFileSync(
-    path.join(tempDir, BUILT_DIR, SLIDES_FILENAME),
-    JSON.stringify({ course_name: 'Test Course', slides: [] }, null, 2),
+    path.join(tempDir, 'sliman.json'),
+    JSON.stringify({ course_name: 'Test Course' }, null, 2),
+    'utf-8'
+  );
+  fsSync.mkdirSync(path.join(tempDir, 'Test Course'), { recursive: true });
+  fsSync.writeFileSync(
+    path.join(tempDir, 'Test Course', SLIDES_FILENAME),
+    JSON.stringify({ slides: [] }, null, 2),
     'utf-8'
   );
 }
@@ -288,8 +300,8 @@ suite('Integration Tests', () => {
         const packageContent = await fs.readFile(packagePath, 'utf-8');
         assert.ok(packageContent.includes('"name": "test-lecture"'), 'package.json should have correct name');
 
-        // Check slides.json was updated (in dist/)
-        const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
+        // Check slides.json was updated (in {course_name}/)
+        const slidesJsonPath = path.join(tempDir, 'Test Course', SLIDES_FILENAME);
         const slidesJsonContent = await fs.readFile(slidesJsonPath, 'utf-8');
         const slidesJson = JSON.parse(slidesJsonContent);
         assert.strictEqual(slidesJson.slides.length, 1, 'slides.json should have 1 lecture');
@@ -311,8 +323,8 @@ suite('Integration Tests', () => {
         createLectureSync(tempDir, 'lecture-2', 'Second Lecture');
         createLectureSync(tempDir, 'lecture-3', 'Third Lecture');
 
-        // Update slides.json with all lectures (in dist/)
-        const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
+        // Update slides.json with all lectures (in {course_name}/)
+        const slidesJsonPath = path.join(tempDir, 'Test Course', SLIDES_FILENAME);
         const slidesConfig = {
           slides: [
             { name: 'lecture-1', title: 'First Lecture' },
@@ -353,8 +365,8 @@ suite('Integration Tests', () => {
         createLectureSync(tempDir, 'lecture-2', 'Second Lecture');
         createLectureSync(tempDir, 'lecture-3', 'Third Lecture');
 
-        // Update slides.json (in dist/)
-        const slidesJsonPath = path.join(tempDir, BUILT_DIR, SLIDES_FILENAME);
+        // Update slides.json (in {course_name}/)
+        const slidesJsonPath = path.join(tempDir, 'Test Course', SLIDES_FILENAME);
         const slidesConfig = {
           slides: [
             { name: 'lecture-1', title: 'First Lecture' },
@@ -417,7 +429,7 @@ suite('Integration Tests', () => {
         if (error) {
           assert.ok(
             error.message.includes('Not a valid course root') ||
-            error.message.includes('dist/slides.json') ||
+            error.message.includes('sliman.json') ||
             error.message.includes('slides.json') ||
             error.message.includes('course'),
             'Error should mention course structure'

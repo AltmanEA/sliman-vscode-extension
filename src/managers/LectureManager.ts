@@ -379,17 +379,22 @@ export class LectureManager {
       throw new Error(`Failed to remove lecture directory: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
-    // Step 2: Remove built lecture from dist/ (if exists)
-    const builtLectureDir = vscode.Uri.joinPath(this.courseManager.getBuiltCourseDir(), name);
-    try {
-      const stat = await vscode.workspace.fs.stat(builtLectureDir);
-      if (stat.type === vscode.FileType.Directory) {
-        await vscode.workspace.fs.delete(builtLectureDir, { recursive: true, useTrash: false });
-        this.log(`Removed built lecture directory: ${builtLectureDir.fsPath}`);
+    // Step 2: Remove built lecture from {course_name}/ directory (if exists)
+    const courseName = await this.courseManager.readCourseName();
+    if (courseName) {
+      const builtLectureDir = vscode.Uri.joinPath(this.courseManager.getBuiltCourseDirWithName(courseName), name);
+      try {
+        const stat = await vscode.workspace.fs.stat(builtLectureDir);
+        if (stat.type === vscode.FileType.Directory) {
+          await vscode.workspace.fs.delete(builtLectureDir, { recursive: true, useTrash: false });
+          this.log(`Removed built lecture directory: ${builtLectureDir.fsPath}`);
+        }
+      } catch {
+        // Built directory doesn't exist, that's fine
+        this.log(`Built lecture directory not found (normal if lecture wasn't built): ${builtLectureDir.fsPath}`);
       }
-    } catch {
-      // Built directory doesn't exist, that's fine
-      this.log(`Built lecture directory not found (normal if lecture wasn't built): ${builtLectureDir.fsPath}`);
+    } else {
+      this.log('Warning: Course name not found in sliman.json, skipping removal of built lecture');
     }
 
     // Step 3: Update course configuration (remove from slides.json)

@@ -8,7 +8,10 @@ export const EXTENSION_ID = 'ea.sli.dev-course-manager';
 /** Output channel name for logs */
 export const OUTPUT_CHANNEL_NAME = 'sli.dev Course';
 
-/** Slides configuration filename (contains course_name and slides array) */
+/** Course configuration filename (contains course_name) */
+export const SLIMAN_FILENAME = 'sliman.json';
+
+/** Slides configuration filename (contains slides array only) */
 export const SLIDES_FILENAME = 'slides.json';
 
 /** Lectures directory name */

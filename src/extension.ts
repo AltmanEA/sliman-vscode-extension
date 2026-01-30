@@ -14,6 +14,7 @@ import {
   deleteLecture,
   buildCourse,
   setupPages,
+  viewCourse,
   initializeCommands
 } from './commands';
 
@@ -54,7 +55,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       vscode.commands.registerCommand('sliman.editLecture', editLecture),
       vscode.commands.registerCommand('sliman.deleteLecture', deleteLecture),
       vscode.commands.registerCommand('sliman.buildCourse', buildCourse),
-      vscode.commands.registerCommand('sliman.setupPages', setupPages)
+      vscode.commands.registerCommand('sliman.setupPages', setupPages),
+      vscode.commands.registerCommand('sliman.viewCourse', viewCourse)
     ];
 
     context.subscriptions.push(...commands);

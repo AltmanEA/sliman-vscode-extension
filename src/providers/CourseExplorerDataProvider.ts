@@ -337,7 +337,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
   }
 
   /**
-   * Builds action items (Add Lecture, Build course, Setup GitHub Pages)
+   * Builds action items (Add Lecture, Build course, Setup GitHub Pages, View Course)
    * @returns Array of action tree items
    */
   private buildActionItems(): CourseTreeItem[] {
@@ -345,6 +345,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
       { id: 'action-add-lecture', label: 'Add Lecture', icon: '$(add)', commandId: 'sliman.addLecture' },
       { id: 'action-build-course', label: 'Build course', icon: '$(tools)', commandId: 'sliman.buildCourse' },
       { id: 'action-setup-pages', label: 'Setup GitHub Pages', icon: '$(cloud)', commandId: 'sliman.setupPages' },
+      { id: 'action-view-course', label: 'View Course', icon: '$(globe)', commandId: 'sliman.viewCourse' },
     ];
 
     return actions.map((action): CourseTreeItem => {

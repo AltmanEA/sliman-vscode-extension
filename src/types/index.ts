@@ -19,17 +19,24 @@ export interface LectureInfo {
 }
 
 /**
- * Course configuration stored in dist/slides.json
- * Contains course_name and slides array
+ * Course configuration stored in sliman.json (course root)
+ * Contains course_name only
+ */
+export interface SlimanConfig {
+  course_name: string;
+}
+
+/**
+ * Slides configuration stored in {course_name}/slides.json
+ * Contains slides array only (course_name moved to sliman.json)
  */
 export interface SlidesConfig {
-  course_name?: string;
   slides: LectureInfo[];
 }
 
 /**
  * Combined course data for display purposes
- * course_name is now read from slides.config (dist/slides.json)
+ * course_name is read from sliman.json, slides from {course_name}/slides.json
  */
 export interface CourseData {
   courseName: string | null;
