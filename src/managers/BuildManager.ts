@@ -11,7 +11,6 @@
  */
 
 import * as vscode from 'vscode';
-import * as fs from 'fs/promises';
 import type { CourseManager } from './CourseManager';
 import type { LectureManager } from './LectureManager';
 import { ProcessHelper } from '../utils/process';
@@ -26,7 +25,7 @@ export interface BuildProgress {
   /** Lecture name (optional, for course-level builds) */
   lecture?: string;
   /** Current build stage */
-  stage: 'installing' | 'building' | 'copying' | 'complete';
+  stage: 'installing' | 'building' | 'copying' | 'updating' | 'complete';
   /** Progress percentage (0-100) */
   percent?: number;
 }
@@ -59,10 +58,12 @@ export class BuildManager {
    * Creates a new BuildManager instance
    * @param courseManager - Course Manager instance
    * @param lectureManager - Lecture Manager instance
+   * @param extensionPath - Path to the extension root directory
    */
   constructor(
     private readonly courseManager: CourseManager,
-    private readonly lectureManager: LectureManager
+    private readonly lectureManager: LectureManager,
+    private readonly extensionPath: string
   ) {
     // Create output channel for build operations
     this._outputChannel = vscode.window.createOutputChannel(BUILD_OUTPUT_CHANNEL);
@@ -251,37 +252,20 @@ export class BuildManager {
     // Clear and show output channel
     this.clearOutput();
     this.appendLine(`=== Building Lecture: ${name} ===`);
-    this.showProgress({ lecture: name, stage: 'installing' });
+    this.showProgress({ lecture: name, stage: 'building' });
 
     try {
-      // Install dependencies
-      this.appendLine('Installing dependencies...');
-      const installResult = await ProcessHelper.installDependencies(lecturePath, {
+      // Build the lecture using pnpm
+      this.appendLine('Building presentation with pnpm build...');
+
+      const buildResult = await ProcessHelper.execPackageManager('build', lecturePath, [], {
         outputChannel: this._outputChannel ?? undefined,
-      });
-
-      if (!installResult.success) {
-        const error = await this.handleBuildError(
-          new Error(`npm install failed: ${installResult.stderr}`),
-          name
-        );
-        await this.showBuildError(error);
-        throw error;
-      }
-
-      this.appendLine('✓ Dependencies installed');
-
-      // Build the lecture
-      this.appendProgress({ lecture: name, stage: 'building' });
-      this.appendLine('Building presentation...');
-
-      const buildResult = await ProcessHelper.runBuild(lecturePath, {
-        outputChannel: this._outputChannel ?? undefined,
+        packageManager: 'pnpm',
       });
 
       if (!buildResult.success) {
         const error = await this.handleBuildError(
-          new Error(`Build failed: ${buildResult.stderr || `Exit code: ${buildResult.exitCode}`}`),
+          new Error(`pnpm build failed: ${buildResult.stderr || `Exit code: ${buildResult.exitCode}`}`),
           name
         );
         await this.showBuildError(error);
@@ -295,6 +279,15 @@ export class BuildManager {
       this.appendLine('Copying to dist/...');
 
       await this.copyLectureToDist(name, lecturePath);
+
+      // Update title in slides.json if needed
+      this.appendProgress({ lecture: name, stage: 'updating' });
+      this.appendLine('Checking and updating lecture title...');
+      await this.updateLectureTitleInConfig(name);
+
+      // Update index.html for single lecture build
+      this.appendLine('Updating course index.html...');
+      await this.updateCourseIndexHtml();
 
       this.appendProgress({ lecture: name, stage: 'complete' });
       this.appendLine('✓ Complete!');
@@ -314,6 +307,7 @@ export class BuildManager {
 
   /**
    * Copies built lecture files to dist/{name}/ directory
+   * Copies only the slidev build output from {lecturePath}/dist/
    * @param lectureName - Lecture folder name
    * @param sourcePath - Source directory with built files
    * @returns Promise resolving when copy completes
@@ -322,25 +316,43 @@ export class BuildManager {
     const distDir = this.courseManager.getBuiltCourseDir();
     const destDir = vscode.Uri.joinPath(distDir, lectureName);
 
+    // Clear destination directory first
+    try {
+      await vscode.workspace.fs.delete(destDir, { recursive: true, useTrash: false });
+    } catch {
+      // Ignore error if directory doesn't exist
+    }
+
     // Create destination directory
     await vscode.workspace.fs.createDirectory(destDir);
 
-    // Read source directory and copy all files
-    const entries = await fs.readdir(sourcePath, { withFileTypes: true });
+    // Get slidev build output directory (should be at {sourcePath}/dist/)
+    const slidevDistPath = vscode.Uri.joinPath(vscode.Uri.file(sourcePath), 'dist');
 
-    for (const entry of entries) {
-      if (entry.isDirectory() && entry.name !== 'node_modules') {
-        const srcUri = vscode.Uri.joinPath(vscode.Uri.file(sourcePath), entry.name);
-        const destUri = vscode.Uri.joinPath(destDir, entry.name);
-        await this.copyDirectory(srcUri, destUri);
-      } else if (entry.isFile()) {
-        const srcUri = vscode.Uri.joinPath(vscode.Uri.file(sourcePath), entry.name);
-        const destUri = vscode.Uri.joinPath(destDir, entry.name);
-        await vscode.workspace.fs.copy(srcUri, destUri);
+    try {
+      // Check if slidev dist directory exists
+      await vscode.workspace.fs.stat(slidevDistPath);
+      
+      // Copy all contents from slidev dist directory
+      const entries = await vscode.workspace.fs.readDirectory(slidevDistPath);
+      
+      for (const [name, type] of entries) {
+        const srcUri = vscode.Uri.joinPath(slidevDistPath, name);
+        const destUri = vscode.Uri.joinPath(destDir, name);
+        
+        if (type === vscode.FileType.Directory) {
+          await this.copyDirectory(srcUri, destUri);
+        } else {
+          await vscode.workspace.fs.copy(srcUri, destUri);
+        }
       }
-    }
 
-    this.appendLine(`Copied to: ${destDir.fsPath}`);
+      this.appendLine(`Copied slidev build output to: ${destDir.fsPath}`);
+    } catch {
+      // If dist directory doesn't exist, create empty folder
+      this.appendLine(`Warning: No dist directory found at ${slidevDistPath.fsPath}, creating empty folder`);
+      await vscode.workspace.fs.createDirectory(destDir);
+    }
   }
 
   /**
@@ -371,43 +383,26 @@ export class BuildManager {
    * @throws Error if build fails
    */
   async buildCourse(): Promise<void> {
-    const courseRoot = this.courseManager.getCourseRoot().fsPath;
-
     // Clear and show output channel
     this.clearOutput();
     this.appendLine('=== Building Course ===');
-    this.showProgress({ stage: 'installing' });
+    this.showProgress({ stage: 'building' });
 
     try {
-      // Install dependencies
-      this.appendLine('Installing dependencies...');
-      const installResult = await ProcessHelper.installDependencies(courseRoot, {
-        outputChannel: this._outputChannel ?? undefined,
-      });
-
-      if (!installResult.success) {
-        const error = await this.handleBuildError(
-          new Error(`npm install failed: ${installResult.stderr}`)
-        );
-        await this.showBuildError(error);
-        throw error;
-      }
-
-      this.appendLine('✓ Dependencies installed');
-
       // Build all lectures
       const lectureDirs = await this.courseManager.getLectureDirectories();
       for (const lectureName of lectureDirs) {
         this.appendLine(`Building lecture: ${lectureName}...`);
         const lecturePath = this.lectureManager.getLectureDir(lectureName).fsPath;
 
-        const buildResult = await ProcessHelper.runBuild(lecturePath, {
+        const buildResult = await ProcessHelper.execPackageManager('build', lecturePath, [], {
           outputChannel: this._outputChannel ?? undefined,
+          packageManager: 'pnpm',
         });
 
         if (!buildResult.success) {
           const error = await this.handleBuildError(
-            new Error(`Build failed: ${buildResult.stderr || `Exit code: ${buildResult.exitCode}`}`),
+            new Error(`pnpm build failed: ${buildResult.stderr || `Exit code: ${buildResult.exitCode}`}`),
             lectureName
           );
           await this.showBuildError(error);
@@ -420,6 +415,16 @@ export class BuildManager {
         this.appendLine(`Copying "${lectureName}" to dist/...`);
         await this.copyLectureToDist(lectureName, lecturePath);
       }
+
+      // Update titles in slides.json for all lectures first
+      this.appendLine('Checking lecture titles...');
+      for (const lectureName of lectureDirs) {
+        await this.updateLectureTitleInConfig(lectureName);
+      }
+
+      // Update index.html after titles are updated
+      this.appendLine('Updating course index.html...');
+      await this.updateCourseIndexHtml();
 
       this.appendLine('✓ Course build completed successfully');
       this.appendLine('=== Done ===');
@@ -453,5 +458,104 @@ export class BuildManager {
     terminal.show();
 
     // Terminal is not disposed - user closes it manually to stop the server
+  }
+
+  /**
+   * Updates lecture title in slides.json if it differs from slides.md
+   * Reads title from slides.md and compares with current slides.json
+   * Updates slides.json if title has changed
+   * @param lectureName - Lecture folder name
+   * @returns Promise resolving when update completes
+   */
+  public async updateLectureTitleInConfig(lectureName: string): Promise<void> {
+    try {
+      this.appendLine(`Checking title for lecture "${lectureName}"...`);
+      
+      // Read title from slides.md
+      const titleFromSlides = await this.lectureManager.readTitleFromSlides(lectureName);
+      this.appendLine(`Title from slides.md: "${titleFromSlides}"`);
+      
+      // Read current slides.json
+      const slidesConfig = await this.courseManager.readSlidesJson();
+      if (!slidesConfig || !slidesConfig.slides) {
+        this.appendLine('Warning: slides.json not found or invalid, skipping title update');
+        return;
+      }
+      
+      // Find the lecture in slides.json
+      const lectureIndex = slidesConfig.slides.findIndex(lecture => lecture.name === lectureName);
+      if (lectureIndex === -1) {
+        this.appendLine(`Warning: Lecture "${lectureName}" not found in slides.json, skipping title update`);
+        return;
+      }
+      
+      const currentTitle = slidesConfig.slides[lectureIndex].title;
+      this.appendLine(`Current title in slides.json: "${currentTitle}"`);
+      
+      // Update title if it has changed
+      if (currentTitle !== titleFromSlides) {
+        this.appendLine(`Updating title: "${currentTitle}" → "${titleFromSlides}"`);
+        
+        // Update the title in slides.json
+        slidesConfig.slides[lectureIndex].title = titleFromSlides;
+        await this.courseManager.writeSlidesJson(slidesConfig);
+        
+        this.appendLine('✓ Title updated in slides.json');
+      } else {
+        this.appendLine('✓ Title is up to date');
+      }
+    } catch (error) {
+      this.appendLine(`Warning: Failed to update title for "${lectureName}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Don't throw - title update is not critical for build success
+    }
+  }
+
+  /**
+   * Updates the main course index.html with current lecture list
+   * Reads slides.json and generates HTML list of lectures
+   * @returns Promise resolving when update completes
+   */
+  private async updateCourseIndexHtml(): Promise<void> {
+    const builtCourseDir = this.courseManager.getBuiltCourseDir();
+    const indexHtmlPath = vscode.Uri.joinPath(builtCourseDir, 'index.html');
+
+    // Read slides.json to get lecture list (force read from filesystem)
+    const slidesConfig = await this.courseManager.readSlidesJson();
+    if (!slidesConfig || !slidesConfig.slides) {
+      this.appendLine('No slides.json found or invalid format');
+      return;
+    }
+
+    this.appendLine(`Found ${slidesConfig.slides.length} lectures in slides.json`);
+
+    // Read template index.html
+    const templatePath = vscode.Uri.joinPath(
+      vscode.Uri.file(this.extensionPath),
+      'template',
+      'index.html'
+    );
+
+    let templateContent: string;
+    try {
+      templateContent = (await vscode.workspace.fs.readFile(templatePath)).toString();
+    } catch {
+      this.appendLine('Template index.html not found');
+      return;
+    }
+
+    // Generate lecture list HTML
+    const lectureListHtml = slidesConfig.slides.map(lecture => 
+      `      <li><a href="./${lecture.name}/">${lecture.title}</a></li>`
+    ).join('\n');
+
+    // Replace placeholder with actual lecture list
+    const updatedContent = templateContent.replace(
+      '<!-- Place to insert slide list -->',
+      lectureListHtml
+    );
+
+    // Write updated index.html to dist/
+    await vscode.workspace.fs.writeFile(indexHtmlPath, new TextEncoder().encode(updatedContent));
+    this.appendLine(`Updated index.html with ${slidesConfig.slides.length} lectures`);
   }
 }

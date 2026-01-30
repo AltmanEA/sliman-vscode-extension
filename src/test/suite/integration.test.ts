@@ -246,8 +246,8 @@ suite('Integration Tests', () => {
   });
 
   // Helper to track build managers for cleanup
-  function createBuildManager(courseManager: CourseManager, lectureManager: LectureManager): BuildManager {
-    const manager = new BuildManager(courseManager, lectureManager);
+  function createBuildManager(courseManager: CourseManager, lectureManager: LectureManager, extensionPath: string): BuildManager {
+    const manager = new BuildManager(courseManager, lectureManager, extensionPath);
     buildManagers.push(manager);
     return manager;
   }
@@ -446,7 +446,7 @@ suite('Integration Tests', () => {
         const _courseManager = new CourseManager(uri);
         const extensionPath = path.resolve(__dirname, '../../..');
         const lectureManager = new LectureManager(_courseManager, extensionPath);
-        const buildManager = createBuildManager(_courseManager, lectureManager);
+        const buildManager = createBuildManager(_courseManager, lectureManager, extensionPath);
         void _courseManager; // Explicit use to satisfy noUnusedLocals
 
         // Execute build
@@ -483,7 +483,7 @@ suite('Integration Tests', () => {
         const courseManager = new CourseManager(uri);
         const extensionPath = path.resolve(__dirname, '../../..');
         const lectureManager = new LectureManager(courseManager, extensionPath);
-        const buildManager = createBuildManager(courseManager, lectureManager);
+        const buildManager = createBuildManager(courseManager, lectureManager, extensionPath);
 
         // Configure mock to fail
         mockExecutor.setFail('Build failed: npm install error');

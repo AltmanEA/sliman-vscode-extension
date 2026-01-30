@@ -21,6 +21,7 @@ import {
   runLecture,
   buildLecture,
   openSlides,
+  editLecture,
   buildCourse,
   setupPages
 } from '../../commands';
@@ -86,6 +87,10 @@ suite('Commands Module', () => {
 
     test('should export setupPages function', () => {
       assert.strictEqual(typeof setupPages, 'function', 'setupPages should be exported as function');
+    });
+
+    test('should export editLecture function', () => {
+      assert.strictEqual(typeof editLecture, 'function', 'editLecture should be exported as function');
     });
 
     test('should export initializeCommands function', () => {
@@ -187,9 +192,17 @@ suite('Commands Module', () => {
       assert.strictEqual(command.category, 'sli.dev Course', 'Should have correct category');
     });
 
-    test('should have exactly 9 commands registered', () => {
+    test('should register sliman.editLecture command', () => {
+      const command = packageJson.contributes.commands.find(
+        (c) => c.command === 'sliman.editLecture'
+      );
+      assert.ok(command, 'sliman.editLecture should be registered');
+      assert.strictEqual(command.category, 'sli.dev Course', 'Should have correct category');
+    });
+
+    test('should have exactly 10 commands registered', () => {
       const commandCount = packageJson.contributes.commands.length;
-      assert.strictEqual(commandCount, 9, 'Should have exactly 9 commands registered');
+      assert.strictEqual(commandCount, 10, 'Should have exactly 10 commands registered');
     });
   });
 
@@ -266,6 +279,10 @@ suite('Commands Module', () => {
       assert.ok(
         commandsContent.includes('export async function setupPages'),
         'Should export setupPages function'
+      );
+      assert.ok(
+        commandsContent.includes('export async function editLecture'),
+        'Should export editLecture function'
       );
     });
 
@@ -614,6 +631,10 @@ suite('Commands Module', () => {
 
     test('setupPages should not throw', async () => {
       await setupPages(); // Should not throw
+    });
+
+    test('editLecture should not throw', async () => {
+      await editLecture('test'); // Should not throw
     });
 
     test('scanCourse should not throw in non-course context', async () => {

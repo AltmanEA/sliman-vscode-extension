@@ -275,6 +275,38 @@ export class LectureManager {
   }
 
   /**
+   * Reads the title from a lecture's slides.md file
+   * Parses the frontmatter to extract the title field
+   * @param name - Lecture folder name
+   * @returns Promise resolving to the title from slides.md
+   * @throws Error if slides.md cannot be read or title is not found
+   */
+  async readTitleFromSlides(name: string): Promise<string> {
+    const slidesPath = this.getLectureSlidesPath(name);
+    
+    try {
+      const content = await vscode.workspace.fs.readFile(slidesPath);
+      const slidesContent = new TextDecoder().decode(content);
+      
+      // Extract title from frontmatter (YAML block between ---)
+      const frontmatterMatch = slidesContent.match(/^---\s*\n([\s\S]*?)\n---/);
+      if (!frontmatterMatch) {
+        throw new Error('No frontmatter found in slides.md');
+      }
+      
+      const frontmatter = frontmatterMatch[1];
+      const titleMatch = frontmatter.match(/^title:\s*(.+)$/m);
+      if (!titleMatch) {
+        throw new Error('No title field found in frontmatter');
+      }
+      
+      return titleMatch[1].trim();
+    } catch (error) {
+      throw new Error(`Failed to read title from slides.md for lecture "${name}": ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Creates a complete new lecture with all required files
    * Creates directory, copies templates, installs dependencies, updates config
    * @param nameOrTitle - Lecture folder name OR display title (if title not provided separately)

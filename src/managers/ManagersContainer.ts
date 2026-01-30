@@ -32,7 +32,7 @@ export class ManagersContainer {
   initialize(workspaceUri: vscode.Uri, context: vscode.ExtensionContext, extensionPath: string): void {
     this._courseManager = new CourseManager(workspaceUri);
     this._lectureManager = new LectureManager(this._courseManager, extensionPath);
-    this._buildManager = new BuildManager(this._courseManager, this._lectureManager);
+    this._buildManager = new BuildManager(this._courseManager, this._lectureManager, extensionPath);
     this._courseExplorer = new CourseExplorer(context);
   }
 

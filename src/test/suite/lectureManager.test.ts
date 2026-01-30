@@ -626,4 +626,107 @@ suite('LectureManager Test Suite', () => {
     });
   });
 
+  suite('readTitleFromSlides', () => {
+    test('should read title from slides.md frontmatter', async () => {
+      const { manager, tempDir } = await createManagerForTest('readTitleFromSlides');
+      try {
+        const fs = await import('fs/promises');
+        const lectureDir = path.join(tempDir, SLIDES_DIR, 'test-lecture');
+        await fs.mkdir(lectureDir, { recursive: true });
+        
+        // Create slides.md with frontmatter
+        const slidesContent = `---
+title: Test Lecture Title
+canvasWidth: 1280
+routerMode: history
+---
+
+# Test Lecture
+
+This is the first slide.`;
+
+        await fs.writeFile(
+          path.join(lectureDir, LECTURE_SLIDES),
+          slidesContent,
+          'utf-8'
+        );
+
+        const title = await manager.readTitleFromSlides('test-lecture');
+        assert.strictEqual(title, 'Test Lecture Title', 'Should read correct title from slides.md');
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should throw error when slides.md has no frontmatter', async () => {
+      const { manager, tempDir } = await createManagerForTest('readTitleFromSlides');
+      try {
+        const fs = await import('fs/promises');
+        const lectureDir = path.join(tempDir, SLIDES_DIR, 'test-lecture');
+        await fs.mkdir(lectureDir, { recursive: true });
+        
+        // Create slides.md without frontmatter
+        const slidesContent = `# Test Lecture
+
+This is a slide without frontmatter.`;
+
+        await fs.writeFile(
+          path.join(lectureDir, LECTURE_SLIDES),
+          slidesContent,
+          'utf-8'
+        );
+
+        await assert.rejects(
+          manager.readTitleFromSlides('test-lecture'),
+          /No frontmatter found in slides.md/
+        );
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should throw error when frontmatter has no title field', async () => {
+      const { manager, tempDir } = await createManagerForTest('readTitleFromSlides');
+      try {
+        const fs = await import('fs/promises');
+        const lectureDir = path.join(tempDir, SLIDES_DIR, 'test-lecture');
+        await fs.mkdir(lectureDir, { recursive: true });
+        
+        // Create slides.md with frontmatter but no title
+        const slidesContent = `---
+canvasWidth: 1280
+routerMode: history
+---
+
+# Test Lecture
+
+This is a slide without title field.`;
+
+        await fs.writeFile(
+          path.join(lectureDir, LECTURE_SLIDES),
+          slidesContent,
+          'utf-8'
+        );
+
+        await assert.rejects(
+          manager.readTitleFromSlides('test-lecture'),
+          /No title field found in frontmatter/
+        );
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should throw error when slides.md file does not exist', async () => {
+      const { manager, tempDir } = await createManagerForTest('readTitleFromSlides');
+      try {
+        await assert.rejects(
+          manager.readTitleFromSlides('nonexistent-lecture'),
+          /Failed to read title from slides.md/
+        );
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
   });
+});

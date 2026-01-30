@@ -62,6 +62,11 @@
         "category": "sli.dev Course"
       },
       {
+        "command": "sliman.editLecture",
+        "title": "Edit Lecture",
+        "category": "sli.dev Course"
+      },
+      {
         "command": "sliman.buildCourse",
         "title": "Build Course",
         "category": "sli.dev Course"
