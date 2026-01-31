@@ -727,8 +727,8 @@ export async function setupPages(): Promise<void> {
 
 /**
  * Command: sliman.viewCourse
- * Starts HTTP server for viewing built course in browser
- * Launches npx http-server {course_name}/ and opens browser
+ * Starts HTTP server in project root and opens built course in browser
+ * Launches npx http-server . and opens browser to /course_name/index.html
  */
 export async function viewCourse(): Promise<void> {
   if (!outputChannel) {
@@ -779,19 +779,19 @@ export async function viewCourse(): Promise<void> {
     void vscode.window.showWarningMessage('Built course not found. The course may not be built yet.');
   }
 
-  // Step 4: Create terminal and start HTTP server
+  // Step 4: Create terminal and start HTTP server in project root
   const terminal = vscode.window.createTerminal('sli.dev Course Viewer');
-  const command = `npx http-server "${courseName}" -p 8080`;
+  const command = `npx http-server . -p 8080`;
   channel.appendLine(`Starting HTTP server: ${command}`);
   
   terminal.sendText(command);
   terminal.show();
 
-  // Step 5: Open browser
-  const browserUrl = 'http://localhost:8080';
+  // Step 5: Open browser to course index
+  const browserUrl = `http://localhost:8080/${courseName}/index.html`;
   channel.appendLine(`Opening browser: ${browserUrl}`);
   void vscode.env.openExternal(vscode.Uri.parse(browserUrl));
   
   channel.appendLine('HTTP server started in terminal. Close terminal to stop the server.');
-  void vscode.window.showInformationMessage('Course viewer started! Browser opened to http://localhost:8080');
+  void vscode.window.showInformationMessage(`Course viewer started! Browser opened to ${browserUrl}`);
 }

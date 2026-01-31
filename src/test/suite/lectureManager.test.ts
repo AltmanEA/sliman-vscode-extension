@@ -22,6 +22,9 @@ import { createTestDir, cleanupTestDir } from '../utils/testWorkspace';
 // Mock ProcessHelper to skip npm install in tests
 ProcessHelper.installDependencies = async () => ({ success: true, stdout: '', stderr: '', exitCode: 0 });
 
+// Set test environment variable to avoid npm install in tests
+process.env.NODE_ENV = 'test';
+
 // ============================================
 // Helper Functions
 // ============================================

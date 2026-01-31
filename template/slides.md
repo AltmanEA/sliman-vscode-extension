@@ -1,8 +1,8 @@
 ﻿---
 title: {{TITLE}}
 name: {{NAME}}
-canvasWidth: 1280
-routerMode: history
+canvasWidth: 800
+routerMode: hash
 ---
 
 # {{TITLE}}
