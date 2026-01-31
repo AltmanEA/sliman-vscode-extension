@@ -9,6 +9,8 @@ import {
   TEMPLATE_DIR,
   TEMPLATE_SLIDES,
   TEMPLATE_PACKAGE,
+  TEMPLATE_GLOBAL_TOP,
+  TEMPLATE_COURSER,
 } from '../constants';
 import { ProcessHelper } from '../utils/process';
 import { generateLectureFolderName, isValidFolderName } from '../utils/translit';
@@ -235,6 +237,57 @@ export class LectureManager {
   }
 
   /**
+   * Creates components directory for a lecture if it doesn't exist
+   * @param name - Lecture folder name
+   * @returns Promise that resolves to the URI of components directory
+   * @throws Error if directory creation fails
+   */
+  async createComponentsDir(name: string): Promise<vscode.Uri> {
+    const componentsDir = vscode.Uri.joinPath(this.getLectureDir(name), 'components');
+    try {
+      await vscode.workspace.fs.createDirectory(componentsDir);
+      return componentsDir;
+    } catch {
+      throw new Error(`Failed to create components directory for lecture: ${name}`);
+    }
+  }
+
+  /**
+   * Copies global-top.vue template to lecture root directory
+   * @param name - Lecture folder name
+   * @returns Promise that resolves when complete
+   * @throws Error if template copy fails
+   */
+  async copyGlobalTopVue(name: string): Promise<void> {
+    const templateContent = await this.readTemplate(TEMPLATE_GLOBAL_TOP);
+    const globalTopPath = vscode.Uri.joinPath(this.getLectureDir(name), TEMPLATE_GLOBAL_TOP);
+    
+    try {
+      await vscode.workspace.fs.writeFile(globalTopPath, new TextEncoder().encode(templateContent));
+    } catch {
+      throw new Error(`Failed to write global-top.vue for lecture: ${name}`);
+    }
+  }
+
+  /**
+   * Copies Courser.vue template to lecture components directory
+   * @param name - Lecture folder name
+   * @returns Promise that resolves when complete
+   * @throws Error if template copy fails
+   */
+  async copyCourserVue(name: string): Promise<void> {
+    const templateContent = await this.readTemplate(TEMPLATE_COURSER);
+    const componentsDir = await this.createComponentsDir(name);
+    const courserPath = vscode.Uri.joinPath(componentsDir, TEMPLATE_COURSER);
+    
+    try {
+      await vscode.workspace.fs.writeFile(courserPath, new TextEncoder().encode(templateContent));
+    } catch {
+      throw new Error(`Failed to write Courser.vue for lecture: ${name}`);
+    }
+  }
+
+  /**
    * Initializes npm dependencies for a lecture
    * Runs pnpm install in the lecture directory (with npm fallback)
    * Waits for installation to complete before resolving
@@ -372,6 +425,13 @@ export class LectureManager {
     this.log('Copying package.json...');
     await this.copyPackageJson(name);
     this.log('Package.json copied.');
+
+    // Step 3.1: Copy Vue component templates
+    this.log('Copying Vue component templates...');
+    await this.copyGlobalTopVue(name);
+    this.log('Global-top.vue copied.');
+    await this.copyCourserVue(name);
+    this.log('Courser.vue copied to components directory.');
 
     // Step 4: Initialize npm dependencies
     // In test environment, skip real installation to avoid timeouts

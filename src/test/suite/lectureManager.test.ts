@@ -15,7 +15,7 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { LectureManager } from '../../managers/LectureManager';
 import { CourseManager } from '../../managers/CourseManager';
-import { SLIDES_DIR, LECTURE_SLIDES, LECTURE_PACKAGE, TEMPLATE_DIR, TEMPLATE_SLIDES, TEMPLATE_PACKAGE, SLIDES_FILENAME } from '../../constants';
+import { SLIDES_DIR, LECTURE_SLIDES, LECTURE_PACKAGE, TEMPLATE_DIR, TEMPLATE_SLIDES, TEMPLATE_PACKAGE, TEMPLATE_GLOBAL_TOP, TEMPLATE_COURSER, SLIDES_FILENAME } from '../../constants';
 import { ProcessHelper } from '../../utils/process';
 import { createTestDir, cleanupTestDir } from '../utils/testWorkspace';
 
@@ -435,6 +435,151 @@ suite('LectureManager Test Suite', () => {
     });
   });
 
+  suite('copyGlobalTopVue', () => {
+    test('should copy global-top.vue to lecture root directory', async () => {
+      const { manager, tempDir } = await createManagerForTest('copyGlobalTopVue');
+      try {
+        const fs = await import('fs/promises');
+        await manager.createLectureDir('lecture-1');
+        await manager.copyGlobalTopVue('lecture-1');
+
+        const content = await fs.readFile(
+          path.join(tempDir, SLIDES_DIR, 'lecture-1', TEMPLATE_GLOBAL_TOP),
+          'utf-8'
+        );
+        assert.ok(content.includes('<Courser/>'));
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should successfully copy global-top.vue (bundled with extension)', async () => {
+      const { manager, tempDir } = await createManagerForTest('copyGlobalTopVue');
+      try {
+        await manager.createLectureDir('lecture-1');
+        // Templates are now bundled with the extension
+        await manager.copyGlobalTopVue('lecture-1');
+
+        const content = await fs.readFile(
+          path.join(tempDir, SLIDES_DIR, 'lecture-1', TEMPLATE_GLOBAL_TOP),
+          'utf-8'
+        );
+        assert.ok(content.includes('<Courser/>'));
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+  });
+
+  suite('copyCourserVue', () => {
+    test('should copy Courser.vue to components directory', async () => {
+      const { manager, tempDir } = await createManagerForTest('copyCourserVue');
+      try {
+        const fs = await import('fs/promises');
+        await manager.createLectureDir('lecture-1');
+        await manager.copyCourserVue('lecture-1');
+
+        const content = await fs.readFile(
+          path.join(tempDir, SLIDES_DIR, 'lecture-1', 'components', TEMPLATE_COURSER),
+          'utf-8'
+        );
+        assert.ok(content.includes('courser'));
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should create components directory if it does not exist', async () => {
+      const { manager, tempDir } = await createManagerForTest('copyCourserVue');
+      try {
+        const fs = await import('fs/promises');
+        await manager.createLectureDir('lecture-1');
+        await manager.copyCourserVue('lecture-1');
+
+        // Check components directory was created
+        const componentsDir = path.join(tempDir, SLIDES_DIR, 'lecture-1', 'components');
+        const stat = await fs.stat(componentsDir);
+        assert.strictEqual(stat.isDirectory(), true);
+
+        // Check Courser.vue exists in components directory
+        const content = await fs.readFile(
+          path.join(componentsDir, TEMPLATE_COURSER),
+          'utf-8'
+        );
+        assert.ok(content.includes('courser'));
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should successfully copy Courser.vue (bundled with extension)', async () => {
+      const { manager, tempDir } = await createManagerForTest('copyCourserVue');
+      try {
+        await manager.createLectureDir('lecture-1');
+        // Templates are now bundled with the extension
+        await manager.copyCourserVue('lecture-1');
+
+        const content = await fs.readFile(
+          path.join(tempDir, SLIDES_DIR, 'lecture-1', 'components', TEMPLATE_COURSER),
+          'utf-8'
+        );
+        assert.ok(content.includes('courser'));
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+  });
+
+  suite('createComponentsDir', () => {
+    test('should create components directory for lecture', async () => {
+      const { manager, tempDir } = await createManagerForTest('createComponentsDir');
+      try {
+        await manager.createLectureDir('lecture-1');
+        const componentsDir = await manager.createComponentsDir('lecture-1');
+
+        const fs = await import('fs/promises');
+        const stat = await fs.stat(componentsDir.fsPath);
+        assert.strictEqual(stat.isDirectory(), true);
+
+        // Check components directory is inside lecture directory
+        assert.ok(componentsDir.fsPath.includes('lecture-1'));
+        assert.ok(componentsDir.fsPath.includes('components'));
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should return URI of components directory', async () => {
+      const { manager, tempDir } = await createManagerForTest('createComponentsDir');
+      try {
+        await manager.createLectureDir('lecture-1');
+        const componentsDir = await manager.createComponentsDir('lecture-1');
+
+        const expectedPath = path.join(tempDir, SLIDES_DIR, 'lecture-1', 'components');
+        assert.strictEqual(componentsDir.fsPath, expectedPath);
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+
+    test('should not throw when components directory already exists', async () => {
+      const { manager, tempDir } = await createManagerForTest('createComponentsDir');
+      try {
+        const fs = await import('fs/promises');
+        await manager.createLectureDir('lecture-1');
+        // Pre-create components directory
+        await fs.mkdir(path.join(tempDir, SLIDES_DIR, 'lecture-1', 'components'), { recursive: true });
+
+        // Should not throw
+        await assert.doesNotThrow(
+          async () => await manager.createComponentsDir('lecture-1')
+        );
+      } finally {
+        await cleanupTestDir(tempDir);
+      }
+    });
+  });
+
   suite('updateCourseConfig', () => {
     test('should add lecture to slides.json in {course_name}/ directory', async () => {
       const { manager, tempDir } = await createManagerForTest('updateCourseConfig');
@@ -518,19 +663,6 @@ suite('LectureManager Test Suite', () => {
       const { manager, tempDir } = await createManagerForTest('createLecture');
       try {
         const fs = await import('fs/promises');
-        // Create template directory
-        const templateDir = path.join(tempDir, TEMPLATE_DIR);
-        await fs.mkdir(templateDir, { recursive: true });
-        await fs.writeFile(
-          path.join(templateDir, TEMPLATE_SLIDES),
-          '---\ntitle: {{TITLE}}\nname: {{NAME}}\n---\n# {{TITLE}}\n',
-          'utf-8'
-        );
-        await fs.writeFile(
-          path.join(templateDir, TEMPLATE_PACKAGE),
-          '{"name": "{{LECTURE_NAME}}", "private": true}',
-          'utf-8'
-        );
         // Create initial structure
         await fs.writeFile(path.join(tempDir, 'sliman.json'), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');
         await fs.mkdir(path.join(tempDir, 'Test Course'), { recursive: true });
@@ -554,6 +686,20 @@ suite('LectureManager Test Suite', () => {
           'utf-8'
         );
         assert.ok(packageContent.includes('"name": "my-lecture"'));
+
+        // Check global-top.vue exists in lecture root
+        const globalTopContent = await fs.readFile(
+          path.join(tempDir, SLIDES_DIR, 'my-lecture', TEMPLATE_GLOBAL_TOP),
+          'utf-8'
+        );
+        assert.ok(globalTopContent.includes('<Courser/>'));
+
+        // Check Courser.vue exists in components directory
+        const courserContent = await fs.readFile(
+          path.join(tempDir, SLIDES_DIR, 'my-lecture', 'components', TEMPLATE_COURSER),
+          'utf-8'
+        );
+        assert.ok(courserContent.includes('courser'));
 
         // Check slides.json was updated (in {course_name}/)
         const slidesJson = JSON.parse(
