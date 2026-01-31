@@ -583,10 +583,12 @@ suite('Commands Module', () => {
       const mockCourseManager = {
         isCourseRoot: async () => true,
         getCourseRoot: () => vscode.Uri.file(tempDir),
-        getLectureDirectories: async () => ['test-lecture']
+        getLectureDirectories: async () => ['test-lecture'],
+        readCourseName: async () => 'Test Course'
       };
       const mockLectureManager = {
-        lectureExists: async () => true
+        lectureExists: async () => true,
+        getLectureDir: (name: string) => vscode.Uri.file(path.join(tempDir, 'slides', name))
       };
       const mockBuildManager = {
         buildLecture: async () => {}
@@ -602,10 +604,29 @@ suite('Commands Module', () => {
       (managersContainer as unknown as { _lectureManager: unknown })._lectureManager = mockLectureManager;
       (managersContainer as unknown as { _buildManager: unknown })._buildManager = mockBuildManager;
 
+      // Store original createTerminal function
+      const originalCreateTerminal = vscode.window.createTerminal;
+
       try {
+        // Mock createTerminal
+        const mockTerminal = {
+          show: () => {},
+          sendText: () => {},
+          dispose: () => {},
+          name: 'sli.dev Build: test-lecture',
+          processId: Promise.resolve(1234),
+          creationOptions: {},
+          exitStatus: { code: 0 },
+          state: { isInteractedWith: false },
+          shellIntegration: {} as vscode.TerminalShellIntegration,
+          hide: () => {}
+        } as unknown as vscode.Terminal;
+        (vscode.window as any).createTerminal = () => mockTerminal;
+
         await buildLecture('test-lecture'); // Should not throw
       } finally {
         // Restore
+        (vscode.window as any).createTerminal = originalCreateTerminal;
         (managersContainer as unknown as { _courseManager: unknown })._courseManager = originalCourseManager;
         (managersContainer as unknown as { _lectureManager: unknown })._lectureManager = originalLectureManager;
         (managersContainer as unknown as { _buildManager: unknown })._buildManager = originalBuildManager;

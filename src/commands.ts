@@ -403,18 +403,69 @@ export async function buildLecture(name: string): Promise<void> {
   const courseRoot = courseManager.getCourseRoot();
   channel.appendLine(`Course root: ${courseRoot.fsPath}`);
 
-  // Step 2: Build the lecture
-  channel.appendLine(`Building lecture: ${name}`);
-  try {
-    await buildManager.buildLecture(name);
-    channel.appendLine('Build completed successfully');
-    void vscode.window.showInformationMessage('Build completed');
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    channel.appendLine(`Build failed: ${errorMessage}`);
-    void vscode.window.showErrorMessage(`Build failed: ${errorMessage}`);
+  // Step 2: Check if lecture exists
+  channel.appendLine(`Checking lecture: ${name}`);
+  const lectureExists = await lectureManager.lectureExists(name);
+  if (!lectureExists) {
+    channel.appendLine(`Lecture "${name}" does not exist`);
+    void vscode.window.showErrorMessage(`Lecture "${name}" does not exist`);
+    return;
   }
+  channel.appendLine(`Lecture "${name}" exists`);
+
+  // Step 3: Build the lecture in terminal for real-time output + copying
+  const lecturePath = lectureManager.getLectureDir(name).fsPath;
+  const terminalName = `sli.dev Build: ${name}`;
+
+  // Get course name for base path
+  const courseName = await courseManager.readCourseName();
+  if (!courseName) {
+    channel.appendLine('Course name not found in sliman.json');
+    void vscode.window.showErrorMessage('Course name not found in sliman.json');
+    return;
+  }
+
+  // Build base path: /{courseName}/{lectureName}/
+  const basePath = `/${courseName}/${name}/`;
+  channel.appendLine(`Using base path: ${basePath}`);
+
+  // Create terminal and show the command that will be executed
+  const terminal = vscode.window.createTerminal(terminalName);
+  channel.appendLine(`Creating terminal: ${terminalName}`);
+  
+  // Show terminal and execute commands
+  terminal.show();
+
+  // Step 4: Execute build commands in terminal
+  channel.appendLine('Executing build commands in terminal...');
+  
+  // Change to lecture directory and build
+  terminal.sendText(`cd "${lecturePath}"`);
+  terminal.sendText(`pnpm install`);
+  terminal.sendText(`pnpm build --base ${basePath}`);
+  
+  // Add a final message to output channel
+  channel.appendLine('Build started in terminal. All output will be visible in the terminal window.');
+  channel.appendLine('Terminal commands:');
+  channel.appendLine(`  cd "${lecturePath}"`);
+  channel.appendLine('  pnpm install');
+  channel.appendLine(`  pnpm build --base ${basePath}`);
+  
+  // Step 5: Add copy command to terminal (will execute after build completes)
+  terminal.sendText('');
+  terminal.sendText('# Copying built files to course directory...');
+  
+  // Use PowerShell-compatible commands to copy the files
+  const courseRootPath = courseRoot.fsPath;
+  terminal.sendText(`if (!(Test-Path "${courseRootPath}\\${courseName}\\${name}")) { mkdir "${courseRootPath}\\${courseName}\\${name}" -Force }`);
+  terminal.sendText(`Copy-Item -Path "${lecturePath}\\dist\\*" -Destination "${courseRootPath}\\${courseName}\\${name}\\" -Recurse -Force -ErrorAction SilentlyContinue`);
+  terminal.sendText('Write-Host "Copy completed!" -ForegroundColor Green');
+  
+  // Show info message to user
+  void vscode.window.showInformationMessage(`Build started for lecture "${name}". All output (including copying) will be visible in the terminal.`);
 }
+
+
 
 /**
  * Command: sliman.openSlides
