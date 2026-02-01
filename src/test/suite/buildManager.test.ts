@@ -200,8 +200,8 @@ suite('BuildManager Test Suite', () => {
   });
 
   // Helper to track build managers for cleanup
-  function createBuildManager(courseManager: CourseManager, lectureManager: LectureManager, extensionPath: string): BuildManager {
-    const manager = new BuildManager(courseManager, lectureManager, extensionPath);
+  function createBuildManager(courseManager: CourseManager, lectureManager: LectureManager): BuildManager {
+    const manager = new BuildManager(courseManager, lectureManager);
     buildManagers.push(manager);
     return manager;
   }
@@ -215,8 +215,7 @@ suite('BuildManager Test Suite', () => {
       const tempDir = await createTestDir('build', 'runDevServer-not-found');
       try {
         const { courseManager, lectureManager } = await createTestCourse(tempDir);
-        const extensionPath = path.resolve(__dirname, '../../..');
-        const buildManager = createBuildManager(courseManager, lectureManager, extensionPath);
+        const buildManager = createBuildManager(courseManager, lectureManager);
 
         await assert.rejects(
           async () => buildManager.runDevServer('nonexistent-lecture'),
@@ -233,8 +232,7 @@ suite('BuildManager Test Suite', () => {
       try {
         const { courseManager, lectureManager } = await createTestCourse(tempDir);
         createTestLectureSync(tempDir, 'test-lecture');
-        const extensionPath = path.resolve(__dirname, '../../..');
-        const buildManager = createBuildManager(courseManager, lectureManager, extensionPath);
+        const buildManager = createBuildManager(courseManager, lectureManager);
 
         // Should not throw - terminal is created successfully
         await buildManager.runDevServer('test-lecture');
@@ -253,11 +251,9 @@ suite('BuildManager Test Suite', () => {
     const tempDir = await createTestDir('build', 'basic-instantiation');
     try {
       const { courseManager, lectureManager } = await createTestCourse(tempDir);
-      const extensionPath = path.resolve(__dirname, '../../..');
-      const buildManager = new BuildManager(courseManager, lectureManager, extensionPath);
+      const buildManager = new BuildManager(courseManager, lectureManager);
 
       assert.ok(buildManager !== undefined, 'BuildManager should be created');
-      assert.ok(buildManager.outputChannel !== undefined, 'BuildManager should have output channel');
     } finally {
       await cleanupTestDir(tempDir);
     }

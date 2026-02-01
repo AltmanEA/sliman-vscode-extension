@@ -29,13 +29,13 @@ export async function createCourse(): Promise<void> {
   }
 
   const channel = outputChannel;
-  channel.appendLine('Command: createCourse - Starting...');
+  channel.appendLine('[CREATE] Command: createCourse - Starting...');
   channel.show();
 
   // Step 1: Get workspace folder first (needed for context)
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders || workspaceFolders.length === 0) {
-    channel.appendLine('Error: No workspace folder is open');
+    channel.appendLine('[CREATE] ✗ Error: No workspace folder is open');
     void vscode.window.showErrorMessage('Please open a folder first');
     return;
   }
@@ -66,29 +66,29 @@ export async function createCourse(): Promise<void> {
   });
 
   if (!courseName) {
-    channel.appendLine('Command cancelled: No course name provided');
+    channel.appendLine('[CREATE] Command cancelled: No course name provided');
     return;
   }
 
-  channel.appendLine(`Course name: ${courseName}`);
+  channel.appendLine(`[CREATE] Course name: ${courseName}`);
 
   let selectedFolder: vscode.WorkspaceFolder;
 
   if (workspaceFolders.length === 1) {
     selectedFolder = workspaceFolders[0];
-    channel.appendLine(`Using workspace: ${selectedFolder.uri.fsPath}`);
+    channel.appendLine(`[CREATE] Using workspace: ${selectedFolder.uri.fsPath}`);
   } else {
     const selected = await vscode.window.showWorkspaceFolderPick({
       placeHolder: 'Select workspace folder for the course'
     });
 
     if (!selected) {
-      channel.appendLine('Command cancelled: No workspace folder selected');
+      channel.appendLine('[CREATE] Command cancelled: No workspace folder selected');
       return;
     }
 
     selectedFolder = selected;
-    channel.appendLine(`Selected workspace: ${selectedFolder.uri.fsPath}`);
+    channel.appendLine(`[CREATE] Selected workspace: ${selectedFolder.uri.fsPath}`);
   }
 
   // Step 3: Confirm creation
@@ -99,7 +99,7 @@ export async function createCourse(): Promise<void> {
   );
 
   if (confirm !== 'Create') {
-    channel.appendLine('Command cancelled: User declined creation');
+    channel.appendLine('[CREATE] Command cancelled: User declined creation');
     return;
   }
 
@@ -107,29 +107,29 @@ export async function createCourse(): Promise<void> {
 
   try {
     // Step 4: Create course structure
-    channel.appendLine('Creating course structure...');
+    channel.appendLine('[CREATE] Creating course structure...');
 
     // Create sliman.json in course root with course_name
     const slimanContent = JSON.stringify({ course_name: courseName }, null, 2);
     const slimanPath = path.join(coursePath, 'sliman.json');
     await fs.writeFile(slimanPath, slimanContent);
-    channel.appendLine(`Created file: ${slimanPath}`);
+    channel.appendLine(`[CREATE] ✓ Created file: ${slimanPath}`);
 
     // Create slides/ directory
     const slidesDir = path.join(coursePath, 'slides');
     await fs.mkdir(slidesDir, { recursive: true });
-    channel.appendLine(`Created directory: ${slidesDir}`);
+    channel.appendLine(`[CREATE] ✓ Created directory: ${slidesDir}`);
 
     // Create {courseName}/ directory for built course
     const courseDir = path.join(coursePath, courseName);
     await fs.mkdir(courseDir, { recursive: true });
-    channel.appendLine(`Created directory: ${courseDir}`);
+    channel.appendLine(`[CREATE] ✓ Created directory: ${courseDir}`);
 
     // Create {courseName}/slides.json with slides array only
     const slidesContent = JSON.stringify({ slides: [] }, null, 2);
     const slidesJsonPath = path.join(coursePath, courseName, 'slides.json');
     await fs.writeFile(slidesJsonPath, slidesContent);
-    channel.appendLine(`Created file: ${slidesJsonPath}`);
+    channel.appendLine(`[CREATE] ✓ Created file: ${slidesJsonPath}`);
 
     // Copy index.html template to {courseName}/
     const templateIndexPath = path.join(extensionPath, 'template', 'index.html');
@@ -139,12 +139,12 @@ export async function createCourse(): Promise<void> {
       let indexContent = await fs.readFile(templateIndexPath, 'utf-8');
       // Update course name in index.html if needed
       await fs.writeFile(indexDestPath, indexContent);
-      channel.appendLine(`Copied template: ${templateIndexPath} -> ${indexDestPath}`);
+      channel.appendLine(`[CREATE] ✓ Copied template: ${templateIndexPath} -> ${indexDestPath}`);
     } catch (templateError) {
-      channel.appendLine(`Warning: Could not copy index.html template: ${templateError}`);
+      channel.appendLine(`[CREATE] Warning: Could not copy index.html template: ${templateError}`);
     }
 
-    channel.appendLine('Course created successfully!');
+    channel.appendLine(`[CREATE] ✓ Course "${courseName}" created successfully!`);
     void vscode.window.showInformationMessage(`Course "${courseName}" created!`);
 
     // Refresh Course Explorer tree view
@@ -152,7 +152,7 @@ export async function createCourse(): Promise<void> {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    channel.appendLine(`Error creating course: ${errorMessage}`);
+    channel.appendLine(`[CREATE] ✗ Error: ${errorMessage}`);
     void vscode.window.showErrorMessage(`Failed to create course: ${errorMessage}`);
   }
 }
@@ -167,27 +167,29 @@ export async function scanCourse(): Promise<void> {
   }
 
   const channel = outputChannel;
+  channel.appendLine('[SCAN] Command: scanCourse');
   channel.show();
 
   const courseManager = managersContainer.courseManager;
   if (!courseManager) {
-    channel.appendLine('CourseManager not initialized');
+    channel.appendLine('[SCAN] ✗ CourseManager not initialized');
     void vscode.window.showErrorMessage('CourseManager not initialized');
     return;
   }
 
   const isRoot = await courseManager.isCourseRoot();
-  channel.appendLine(`Is course root: ${isRoot}`);
+  channel.appendLine(`[SCAN] Is course root: ${isRoot}`);
 
   if (isRoot) {
     const courseName = await courseManager.readCourseName();
-    channel.appendLine(`Course name: ${courseName ?? 'N/A'}`);
+    channel.appendLine(`[SCAN] Course name: ${courseName ?? 'N/A'}`);
 
     const lectures = await courseManager.getLectureDirectories();
-    channel.appendLine(`Lectures found: ${lectures.length}`);
-    lectures.forEach((name) => channel.appendLine(`  - ${name}`));
+    channel.appendLine(`[SCAN] Lectures found: ${lectures.length}`);
+    lectures.forEach((name) => channel.appendLine(`[SCAN]   - ${name}`));
+    channel.appendLine('[SCAN] ✓ Scan completed successfully');
   } else {
-    channel.appendLine('Workspace is not a valid course root (sliman.json not found)');
+    channel.appendLine('[SCAN] ✗ Workspace is not a valid course root (sliman.json not found)');
     void vscode.window.showWarningMessage('Not a valid course root');
   }
 
@@ -204,7 +206,7 @@ export async function addLecture(): Promise<void> {
   }
 
   const channel = outputChannel;
-  channel.appendLine('Command: addLecture');
+  channel.appendLine('[ADD] Command: addLecture');
   channel.show();
 
   // Get managers
@@ -212,7 +214,7 @@ export async function addLecture(): Promise<void> {
   const lectureManager = managersContainer.lectureManager;
 
   if (!courseManager || !lectureManager) {
-    channel.appendLine('Managers not initialized');
+    channel.appendLine('[ADD] ✗ Managers not initialized');
     void vscode.window.showErrorMessage('Managers not initialized');
     return;
   }
@@ -220,13 +222,13 @@ export async function addLecture(): Promise<void> {
   // Step 1: Check if we're in a course root
   const isRoot = await courseManager.isCourseRoot();
   if (!isRoot) {
-    channel.appendLine('Not in a course root directory');
+    channel.appendLine('[ADD] ✗ Not in a course root directory');
     void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
     return;
   }
 
   const courseRoot = courseManager.getCourseRoot();
-  channel.appendLine(`Course root: ${courseRoot.fsPath}`);
+  channel.appendLine(`[ADD] Course root: ${courseRoot.fsPath}`);
 
   // Step 2: Get lecture title from user
   const title = await vscode.window.showInputBox({
@@ -245,11 +247,11 @@ export async function addLecture(): Promise<void> {
   });
 
   if (!title) {
-    channel.appendLine('Lecture creation cancelled (no title)');
+    channel.appendLine('[ADD] Command cancelled: No title provided');
     return;
   }
 
-  channel.appendLine(`Lecture title: ${title}`);
+  channel.appendLine(`[ADD] Lecture title: ${title}`);
 
   // Step 3: Generate and suggest folder name
   const suggestedFolderName = generateLectureFolderName(title);
@@ -272,11 +274,11 @@ export async function addLecture(): Promise<void> {
   });
 
   if (!folderName) {
-    channel.appendLine('Lecture creation cancelled (no folder name)');
+    channel.appendLine('[ADD] Command cancelled: No folder name provided');
     return;
   }
 
-  channel.appendLine(`Folder name: ${folderName}`);
+  channel.appendLine(`[ADD] Folder name: ${folderName}`);
 
   // Step 5: Confirm creation
   const confirm = await vscode.window.showInformationMessage(
@@ -286,18 +288,15 @@ export async function addLecture(): Promise<void> {
   );
 
   if (confirm !== 'Create') {
-    channel.appendLine('Lecture creation cancelled by user');
+    channel.appendLine('[ADD] Command cancelled: User declined creation');
     return;
   }
 
   // Step 6: Create lecture
   try {
-    // Set output channel for lecture manager logging
-    lectureManager.setOutputChannel(outputChannel);
-    
-    channel.appendLine('Creating lecture...');
+    channel.appendLine('[ADD] Creating lecture...');
     await lectureManager.createLecture(folderName, title);
-    channel.appendLine(`Lecture "${title}" created successfully!`);
+    channel.appendLine(`[ADD] ✓ Lecture "${title}" created successfully!`);
     void vscode.window.showInformationMessage(`Lecture "${title}" created!`);
 
     // Refresh Course Explorer tree view
@@ -305,7 +304,7 @@ export async function addLecture(): Promise<void> {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    channel.appendLine(`Error creating lecture: ${errorMessage}`);
+    channel.appendLine(`[ADD] ✗ Error: ${errorMessage}`);
     void vscode.window.showErrorMessage(`Failed to create lecture: ${errorMessage}`);
   }
 }
@@ -422,14 +421,14 @@ export async function openSlides(name: string): Promise<void> {
   }
 
   const channel = outputChannel;
-  channel.appendLine(`Command: openSlides: ${name}`);
+  channel.appendLine(`[OPEN] Command: openSlides: ${name}`);
   channel.show();
 
   const courseManager = managersContainer.courseManager;
   const lectureManager = managersContainer.lectureManager;
 
   if (!courseManager || !lectureManager) {
-    channel.appendLine('Managers not initialized');
+    channel.appendLine('[OPEN] ✗ Managers not initialized');
     void vscode.window.showErrorMessage('Managers not initialized');
     return;
   }
@@ -437,21 +436,21 @@ export async function openSlides(name: string): Promise<void> {
   // Step 1: Check if we're in a course root
   const isRoot = await courseManager.isCourseRoot();
   if (!isRoot) {
-    channel.appendLine('Not in a course root directory');
+    channel.appendLine('[OPEN] ✗ Not in a course root directory');
     void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
     return;
   }
 
   // Step 2: Get path to slides.md
   const slidesPath = lectureManager.getLectureSlidesPath(name);
-  channel.appendLine(`Opening: ${slidesPath.fsPath}`);
+  channel.appendLine(`[OPEN] Opening: ${slidesPath.fsPath}`);
 
   // Step 3: Open file in editor
   try {
     await vscode.window.showTextDocument(slidesPath);
-    channel.appendLine('File opened successfully');
+    channel.appendLine(`[OPEN] ✓ File opened successfully`);
   } catch {
-    channel.appendLine(`File not found: ${slidesPath.fsPath}`);
+    channel.appendLine(`[OPEN] ✗ File not found: ${slidesPath.fsPath}`);
     void vscode.window.showErrorMessage(`slides.md not found for lecture "${name}"`);
   }
 }
@@ -527,14 +526,14 @@ export async function deleteLecture(name: string): Promise<void> {
   }
 
   const channel = outputChannel;
-  channel.appendLine(`Command: deleteLecture: ${name}`);
+  channel.appendLine(`[DELETE] Command: deleteLecture: ${name}`);
   channel.show();
 
   const courseManager = managersContainer.courseManager;
   const lectureManager = managersContainer.lectureManager;
 
   if (!courseManager || !lectureManager) {
-    channel.appendLine('Managers not initialized');
+    channel.appendLine('[DELETE] ✗ Managers not initialized');
     void vscode.window.showErrorMessage('Managers not initialized');
     return;
   }
@@ -542,20 +541,20 @@ export async function deleteLecture(name: string): Promise<void> {
   // Step 1: Check if we're in a course root
   const isRoot = await courseManager.isCourseRoot();
   if (!isRoot) {
-    channel.appendLine('Not in a course root directory');
+    channel.appendLine('[DELETE] ✗ Not in a course root directory');
     void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
     return;
   }
 
   // Step 2: Check if lecture exists
-  channel.appendLine(`Checking lecture: ${name}`);
+  channel.appendLine(`[DELETE] Checking lecture: ${name}`);
   const lectureExists = await lectureManager.lectureExists(name);
   if (!lectureExists) {
-    channel.appendLine(`Lecture "${name}" does not exist`);
+    channel.appendLine(`[DELETE] ✗ Lecture "${name}" does not exist`);
     void vscode.window.showErrorMessage(`Lecture "${name}" does not exist`);
     return;
   }
-  channel.appendLine(`Lecture "${name}" exists`);
+  channel.appendLine(`[DELETE] ✓ Lecture "${name}" exists`);
 
   // Step 3: Get lecture title for confirmation dialog
   let lectureTitle = name;
@@ -563,7 +562,7 @@ export async function deleteLecture(name: string): Promise<void> {
     lectureTitle = await lectureManager.readTitleFromSlides(name);
   } catch {
     // If we can't read the title, use the folder name
-    channel.appendLine(`Warning: Could not read lecture title, using folder name`);
+    channel.appendLine(`[DELETE] Warning: Could not read lecture title, using folder name`);
   }
 
   // Step 4: Ask for confirmation
@@ -574,15 +573,15 @@ export async function deleteLecture(name: string): Promise<void> {
   );
 
   if (confirm !== 'Delete') {
-    channel.appendLine('Lecture deletion cancelled by user');
+    channel.appendLine('[DELETE] Command cancelled: User declined deletion');
     return;
   }
 
   // Step 5: Delete the lecture
-  channel.appendLine(`Deleting lecture: ${name}`);
+  channel.appendLine(`[DELETE] Deleting lecture: ${name}`);
   try {
     await lectureManager.deleteLecture(name);
-    channel.appendLine('Lecture deleted successfully');
+    channel.appendLine(`[DELETE] ✓ Lecture deleted successfully`);
     void vscode.window.showInformationMessage(`Lecture "${lectureTitle}" deleted`);
 
     // Refresh Course Explorer tree view
@@ -590,7 +589,7 @@ export async function deleteLecture(name: string): Promise<void> {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    channel.appendLine(`Failed to delete lecture: ${errorMessage}`);
+    channel.appendLine(`[DELETE] ✗ Failed to delete lecture: ${errorMessage}`);
     void vscode.window.showErrorMessage(`Failed to delete lecture: ${errorMessage}`);
   }
 }
@@ -643,14 +642,14 @@ export async function buildCourse(): Promise<void> {
   lectures.forEach((lecture) => channel.appendLine(`  - ${lecture}`));
 
   // Step 3: Build the course
-  channel.appendLine('Building course...');
+  channel.appendLine('[BUILD] Building course...');
   try {
-    await buildManager.buildCourse();
-    channel.appendLine('Course build completed');
+    await buildManager.buildCourse(outputChannel);
+    channel.appendLine('[BUILD] ✓ Course build completed');
     void vscode.window.showInformationMessage('Course built successfully');
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    channel.appendLine(`Build failed: ${errorMessage}`);
+    channel.appendLine(`[BUILD] ✗ Build failed: ${errorMessage}`);
     void vscode.window.showErrorMessage(`Build failed: ${errorMessage}`);
   }
 }
@@ -665,13 +664,13 @@ export async function setupPages(): Promise<void> {
   }
 
   const channel = outputChannel;
-  channel.appendLine('Command: setupPages');
+  channel.appendLine('[PAGES] Command: setupPages');
   channel.show();
 
   const courseManager = managersContainer.courseManager;
 
   if (!courseManager) {
-    channel.appendLine('Managers not initialized');
+    channel.appendLine('[PAGES] ✗ Managers not initialized');
     void vscode.window.showErrorMessage('Managers not initialized');
     return;
   }
@@ -679,22 +678,22 @@ export async function setupPages(): Promise<void> {
   // Step 1: Check if we're in a course root
   const isRoot = await courseManager.isCourseRoot();
   if (!isRoot) {
-    channel.appendLine('Not in a course root directory');
+    channel.appendLine('[PAGES] ✗ Not in a course root directory');
     void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
     return;
   }
 
   const courseRoot = courseManager.getCourseRoot();
-  channel.appendLine(`Course root: ${courseRoot.fsPath}`);
+  channel.appendLine(`[PAGES] Course root: ${courseRoot.fsPath}`);
 
   // Step 2: Create GitHub Actions workflow
-  channel.appendLine('Setting up GitHub Pages...');
+  channel.appendLine('[PAGES] Setting up GitHub Pages...');
 
   try {
     // Create .github/workflows directory
     const workflowsDir = vscode.Uri.joinPath(courseRoot, '.github', 'workflows');
     await vscode.workspace.fs.createDirectory(workflowsDir);
-    channel.appendLine('Created .github/workflows directory');
+    channel.appendLine('[PAGES] ✓ Created .github/workflows directory');
 
     // Copy static.yml template
     const templateUri = vscode.Uri.joinPath(
@@ -706,16 +705,16 @@ export async function setupPages(): Promise<void> {
 
     const templateContent = await vscode.workspace.fs.readFile(templateUri);
     await vscode.workspace.fs.writeFile(staticYmlUri, templateContent);
-    channel.appendLine('Created .github/workflows/static.yml');
+    channel.appendLine('[PAGES] ✓ Created .github/workflows/static.yml');
 
     // Show instructions
-    channel.appendLine('GitHub Pages setup complete');
+    channel.appendLine('[PAGES] ✓ GitHub Pages setup complete');
     void vscode.window.showInformationMessage(
       'GitHub Pages workflow created! Push to GitHub and enable Pages in repository settings.'
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    channel.appendLine(`Setup failed: ${errorMessage}`);
+    channel.appendLine(`[PAGES] ✗ Setup failed: ${errorMessage}`);
     void vscode.window.showErrorMessage(`Setup failed: ${errorMessage}`);
   }
 }
@@ -731,13 +730,13 @@ export async function viewCourse(): Promise<void> {
   }
 
   const channel = outputChannel;
-  channel.appendLine('Command: viewCourse');
+  channel.appendLine('[VIEW] Command: viewCourse');
   channel.show();
 
   const courseManager = managersContainer.courseManager;
 
   if (!courseManager) {
-    channel.appendLine('CourseManager not initialized');
+    channel.appendLine('[VIEW] ✗ CourseManager not initialized');
     void vscode.window.showErrorMessage('CourseManager not initialized');
     return;
   }
@@ -745,48 +744,48 @@ export async function viewCourse(): Promise<void> {
   // Step 1: Check if we're in a course root
   const isRoot = await courseManager.isCourseRoot();
   if (!isRoot) {
-    channel.appendLine('Not in a course root directory');
+    channel.appendLine('[VIEW] ✗ Not in a course root directory');
     void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
     return;
   }
 
   const courseRoot = courseManager.getCourseRoot();
-  channel.appendLine(`Course root: ${courseRoot.fsPath}`);
+  channel.appendLine(`[VIEW] Course root: ${courseRoot.fsPath}`);
 
   // Step 2: Get course name
   const courseName = await courseManager.readCourseName();
   if (!courseName) {
-    channel.appendLine('Course name not found in sliman.json');
+    channel.appendLine('[VIEW] ✗ Course name not found in sliman.json');
     void vscode.window.showErrorMessage('Course name not found in sliman.json');
     return;
   }
-  channel.appendLine(`Course name: ${courseName}`);
+  channel.appendLine(`[VIEW] Course name: ${courseName}`);
 
   // Step 3: Check if built course exists
   const builtIndexPath = vscode.Uri.joinPath(courseRoot, courseName, 'index.html');
-  channel.appendLine(`Checking for built course: ${builtIndexPath.fsPath}`);
+  channel.appendLine(`[VIEW] Checking for built course: ${builtIndexPath.fsPath}`);
 
   try {
     await vscode.workspace.fs.stat(builtIndexPath);
-    channel.appendLine('Built course found');
+    channel.appendLine('[VIEW] ✓ Built course found');
   } catch {
-    channel.appendLine('Built course not found');
+    channel.appendLine('[VIEW] ✗ Built course not found');
     void vscode.window.showWarningMessage('Built course not found. The course may not be built yet.');
   }
 
   // Step 4: Create terminal and start HTTP server in project root
   const terminal = vscode.window.createTerminal('sli.dev Course Viewer');
   const command = `npx http-server . -p 8080`;
-  channel.appendLine(`Starting HTTP server: ${command}`);
+  channel.appendLine(`[VIEW] Starting HTTP server: ${command}`);
   
   terminal.sendText(command);
   terminal.show();
 
   // Step 5: Open browser to course index
   const browserUrl = `http://localhost:8080/${courseName}/index.html`;
-  channel.appendLine(`Opening browser: ${browserUrl}`);
+  channel.appendLine(`[VIEW] Opening browser: ${browserUrl}`);
   void vscode.env.openExternal(vscode.Uri.parse(browserUrl));
   
-  channel.appendLine('HTTP server started in terminal. Close terminal to stop the server.');
+  channel.appendLine('[VIEW] ✓ HTTP server started in terminal. Close terminal to stop the server.');
   void vscode.window.showInformationMessage(`Course viewer started! Browser opened to ${browserUrl}`);
 }

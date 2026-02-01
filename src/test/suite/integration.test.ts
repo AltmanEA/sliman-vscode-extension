@@ -258,8 +258,8 @@ suite('Integration Tests', () => {
   });
 
   // Helper to track build managers for cleanup
-  function createBuildManager(courseManager: CourseManager, lectureManager: LectureManager, extensionPath: string): BuildManager {
-    const manager = new BuildManager(courseManager, lectureManager, extensionPath);
+  function createBuildManager(courseManager: CourseManager, lectureManager: LectureManager): BuildManager {
+    const manager = new BuildManager(courseManager, lectureManager);
     buildManagers.push(manager);
     return manager;
   }
@@ -458,7 +458,7 @@ suite('Integration Tests', () => {
         const _courseManager = new CourseManager(uri);
         const extensionPath = path.resolve(__dirname, '../../..');
         const lectureManager = new LectureManager(_courseManager, extensionPath);
-        const buildManager = createBuildManager(_courseManager, lectureManager, extensionPath);
+        const buildManager = createBuildManager(_courseManager, lectureManager);
         void _courseManager; // Explicit use to satisfy noUnusedLocals
 
         // Execute build
@@ -474,9 +474,6 @@ suite('Integration Tests', () => {
         const hasBuild = commands.some((c) => c.includes('build'));
 
         assert.ok(hasInstall || hasBuild, 'Should have attempted install or build');
-
-        // Verify output channel was used
-        assert.ok(buildManager.outputChannel, 'BuildManager should have outputChannel');
       } finally {
         await cleanupTestDir(tempDir);
       }
@@ -495,7 +492,7 @@ suite('Integration Tests', () => {
         const courseManager = new CourseManager(uri);
         const extensionPath = path.resolve(__dirname, '../../..');
         const lectureManager = new LectureManager(courseManager, extensionPath);
-        const buildManager = createBuildManager(courseManager, lectureManager, extensionPath);
+        const buildManager = createBuildManager(courseManager, lectureManager);
 
         // Configure mock to fail
         mockExecutor.setFail('Build failed: npm install error');
@@ -506,9 +503,6 @@ suite('Integration Tests', () => {
         // Verify error was captured
         const capturedCalls = mockExecutor.getCapturedCalls();
         assert.ok(capturedCalls.length > 0, 'Should have captured failed build command');
-
-        // Verify output channel has content
-        assert.ok(buildManager.outputChannel, 'BuildManager should have outputChannel');
       } finally {
         await cleanupTestDir(tempDir);
       }
