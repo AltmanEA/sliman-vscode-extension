@@ -7,6 +7,7 @@ import {
   transliterate,
   generateLectureFolderName,
   isValidFolderName,
+  validateCourseName,
 } from '../../utils/translit';
 
 suite('translit', () => {
@@ -139,6 +140,158 @@ suite('translit', () => {
     test('should return true for single alphanumeric character', () => {
       assert.strictEqual(isValidFolderName('a'), true);
       assert.strictEqual(isValidFolderName('1'), true);
+    });
+  });
+
+  suite('validateCourseName()', () => {
+    test('should return invalid for null input', () => {
+      const result = validateCourseName(null as unknown as string);
+      assert.strictEqual(result.isValid, false);
+      assert.strictEqual(result.error, 'Course name cannot be empty');
+    });
+
+    test('should return invalid for undefined input', () => {
+      const result = validateCourseName(undefined as unknown as string);
+      assert.strictEqual(result.isValid, false);
+      assert.strictEqual(result.error, 'Course name cannot be empty');
+    });
+
+    test('should return invalid for empty string', () => {
+      const result = validateCourseName('');
+      assert.strictEqual(result.isValid, false);
+      assert.strictEqual(result.error, 'Course name cannot be empty');
+    });
+
+    test('should return invalid for whitespace-only string', () => {
+      const result = validateCourseName('   ');
+      assert.strictEqual(result.isValid, false);
+      assert.strictEqual(result.error, 'Course name cannot be empty');
+    });
+
+    test('should return invalid for names longer than 100 characters', () => {
+      const longName = 'a'.repeat(101);
+      const result = validateCourseName(longName);
+      assert.strictEqual(result.isValid, false);
+      assert.strictEqual(result.error, 'Course name must be 100 characters or less');
+    });
+
+    test('should return invalid for names with Cyrillic characters', () => {
+      const result = validateCourseName('Привет мир');
+      assert.strictEqual(result.isValid, false);
+      assert.strictEqual(result.error, 'Course name must not contain Cyrillic characters. Use only Latin letters, numbers, and hyphens.');
+    });
+
+    test('should return invalid for names with spaces', () => {
+      const result = validateCourseName('Hello World');
+      assert.strictEqual(result.isValid, false);
+      assert.strictEqual(result.error, 'Course name cannot contain spaces. Use hyphens to separate words.');
+    });
+
+    test('should return invalid for names with forbidden characters', () => {
+      const forbiddenChars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+      forbiddenChars.forEach(char => {
+        const result = validateCourseName(`test${char}name`);
+        assert.strictEqual(result.isValid, false);
+        assert.ok(result.error?.includes('forbidden characters'));
+      });
+    });
+
+    test('should return invalid for reserved Windows names', () => {
+      const reservedNames = ['con', 'prn', 'aux', 'nul', 'com1', 'lpt1'];
+      reservedNames.forEach(name => {
+        const result = validateCourseName(name);
+        assert.strictEqual(result.isValid, false);
+        assert.ok(result.error?.includes('reserved name'));
+      });
+    });
+
+    test('should return invalid for names starting with hyphen', () => {
+      const result = validateCourseName('-hello');
+      assert.strictEqual(result.isValid, false);
+      assert.ok(result.error?.includes('cannot start or end with special characters'));
+    });
+
+    test('should return invalid for names ending with hyphen', () => {
+      const result = validateCourseName('hello-');
+      assert.strictEqual(result.isValid, false);
+      assert.ok(result.error?.includes('cannot start or end with special characters'));
+    });
+
+    test('should return valid for valid course names', () => {
+      const validNames = [
+        'Introduction-To-TypeScript',
+        'web-development-course',
+        'ReactBasics',
+        'course123',
+        'a',
+        'a1',
+        'course-name-with-hyphens',
+        'course.name.with.dots',
+        'Course_Name_With_Underscores',
+        'intro-to-typescript',
+        'web-dev-basics',
+        'javascript-fundamentals'
+      ];
+
+      validNames.forEach(name => {
+        const result = validateCourseName(name);
+        assert.strictEqual(result.isValid, true, `Expected "${name}" to be valid`);
+        assert.strictEqual(result.error, undefined, `Expected "${name}" to have no error`);
+      });
+    });
+
+    test('should trim whitespace but still reject spaces in content', () => {
+      const result = validateCourseName('  hello world  ');
+      assert.strictEqual(result.isValid, false);
+      assert.ok(result.error?.includes('cannot contain spaces'));
+    });
+
+    test('should trim whitespace and accept valid content', () => {
+      const result = validateCourseName('  hello-world  ');
+      assert.strictEqual(result.isValid, true);
+      assert.strictEqual(result.error, undefined);
+    });
+
+    test('should handle mixed valid and invalid characters', () => {
+      const result = validateCourseName('Hello@World!');
+      assert.strictEqual(result.isValid, false);
+      // @ is not in the forbidden list but fails the valid pattern check
+      assert.ok(result.error?.includes('Latin letters'));
+    });
+
+    test('should handle course name with dots (not reserved)', () => {
+      const result = validateCourseName('my.course.name');
+      assert.strictEqual(result.isValid, true);
+      assert.strictEqual(result.error, undefined);
+    });
+
+    test('should handle exactly 100 characters', () => {
+      const exactly100 = 'a'.repeat(100);
+      const result = validateCourseName(exactly100);
+      assert.strictEqual(result.isValid, true);
+    });
+
+    test('should handle exactly 101 characters', () => {
+      const exactly101 = 'a'.repeat(101);
+      const result = validateCourseName(exactly101);
+      assert.strictEqual(result.isValid, false);
+      assert.strictEqual(result.error, 'Course name must be 100 characters or less');
+    });
+
+    test('should produce URL-safe names', () => {
+      const testNames = [
+        { input: 'intro-to-typescript', expected: 'URL-safe' },
+        { input: 'web-dev-course', expected: 'URL-safe' },
+        { input: 'course.name', expected: 'URL-safe' },
+        { input: 'course_name', expected: 'URL-safe' }
+      ];
+
+      testNames.forEach(({ input, expected }) => {
+        const result = validateCourseName(input);
+        assert.strictEqual(result.isValid, true, `${input} should be ${expected}`);
+        // Verify no spaces, special URL characters, etc.
+        assert.ok(!result.error, `${input} should have no errors`);
+      });
     });
   });
 });

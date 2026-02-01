@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { managersContainer } from './managers/ManagersContainer';
-import { generateLectureFolderName, isValidFolderName } from './utils/translit';
+import { generateLectureFolderName, isValidFolderName, validateCourseName } from './utils/translit';
 
 let outputChannel: vscode.OutputChannel | null = null;
 let extensionPath: string = '';
@@ -48,11 +48,16 @@ export async function createCourse(): Promise<void> {
         placeHolder: 'e.g., Introduction to TypeScript',
         ignoreFocusOut: false,
         validateInput: (value) => {
-          if (!value || value.trim().length === 0) {
-            return 'Course name cannot be empty';
-          }
-          if (value.length > 100) {
-            return 'Course name must be 100 characters or less';
+          const validation = validateCourseName(value || '');
+          if (validation.error) {
+            // Provide helpful suggestions based on common issues
+            if (validation.error.includes('Cyrillic')) {
+              return 'Course name must not contain Cyrillic characters. Use only Latin letters, numbers, and hyphens. For example: "intro-to-typescript"';
+            }
+            if (validation.error.includes('spaces')) {
+              return 'Course name cannot contain spaces. Use hyphens to separate words. For example: "intro-to-typescript"';
+            }
+            return validation.error + ' For example: "intro-to-typescript"';
           }
           return null;
         }

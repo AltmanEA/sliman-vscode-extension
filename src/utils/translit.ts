@@ -124,3 +124,98 @@ export function isValidFolderName(name: string): boolean {
   const validPattern = /^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/;
   return validPattern.test(name);
 }
+
+/**
+ * Validates course name for compatibility with all operating systems
+ * @param courseName - The course name to validate
+ * @returns Validation result with isValid flag and error message
+ */
+export interface CourseNameValidation {
+  isValid: boolean;
+  error?: string;
+}
+
+/**
+ * Validates course name for cross-platform compatibility and URL usage
+ * @param courseName - The course name to validate
+ * @returns Validation result with isValid flag and error message
+ */
+export function validateCourseName(courseName: string): CourseNameValidation {
+  if (!courseName || typeof courseName !== 'string') {
+    return {
+      isValid: false,
+      error: 'Course name cannot be empty'
+    };
+  }
+
+  const trimmedName = courseName.trim();
+
+  if (trimmedName.length === 0) {
+    return {
+      isValid: false,
+      error: 'Course name cannot be empty'
+    };
+  }
+
+  if (trimmedName.length > 100) {
+    return {
+      isValid: false,
+      error: 'Course name must be 100 characters or less'
+    };
+  }
+
+  // Check for Cyrillic characters
+  const cyrillicPattern = /[а-яё]/i;
+  if (cyrillicPattern.test(trimmedName)) {
+    return {
+      isValid: false,
+      error: 'Course name must not contain Cyrillic characters. Use only Latin letters, numbers, and hyphens.'
+    };
+  }
+
+  // Check for spaces
+  if (/\s/.test(trimmedName)) {
+    return {
+      isValid: false,
+      error: 'Course name cannot contain spaces. Use hyphens to separate words.'
+    };
+  }
+
+  // Additional forbidden characters check for cross-platform compatibility
+  const forbiddenChars = /[<>:"/\\|?*]/;
+  if (forbiddenChars.test(trimmedName)) {
+    return {
+      isValid: false,
+      error: 'Course name cannot contain forbidden characters: < > : " / \\ | ? *'
+    };
+  }
+
+  // Check for reserved Windows names (case-insensitive)
+  const reservedNames = [
+    'con', 'prn', 'aux', 'nul',
+    'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9',
+    'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9'
+  ];
+
+  const nameWithoutExtension = trimmedName.split('.')[0].toLowerCase();
+  if (reservedNames.includes(nameWithoutExtension)) {
+    return {
+      isValid: false,
+      error: `Course name cannot be a reserved name: ${reservedNames.join(', ')}`
+    };
+  }
+
+  // Check for valid characters (Latin alphanumeric, hyphens, dots, underscores)
+  // No spaces allowed - suitable for URL paths
+  const validPattern = /^[a-zA-Z0-9][a-zA-Z0-9\-._]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/;
+  if (!validPattern.test(trimmedName)) {
+    return {
+      isValid: false,
+      error: 'Course name must contain only Latin letters, numbers, hyphens, dots, and underscores. It cannot start or end with special characters.'
+    };
+  }
+
+  return {
+    isValid: true
+  };
+}
