@@ -468,7 +468,7 @@ interface ManagersContainer {
 - `createCourse()` — создание нового курса
 - `addLecture()` — добавление новой лекции
 - `scanCourse()` — сканирование курса
-- `runLecture(name)` — запуск dev сервера лекции
+
 - `buildLecture(name)` — сборка лекции
 - `openSlides(name)` — открытие slides.md
 - `buildCourse()` — сборка всего курса
@@ -493,7 +493,7 @@ interface ManagersContainer {
 | sliman.editLecture | Edit Lecture | Открывает slides.md и запускает dev сервер для редактирования |
 | sliman.deleteLecture | Delete Lecture | Удаляет лекцию с подтверждением |
 | sliman.viewCourse | View Course | Запускает HTTP сервер для просмотра собранного курса |
-| sliman.runLecture | Run Lecture | Запускает лекцию в режиме разработки |
+
 | sliman.buildLecture | Build Lecture | Собирает лекцию в статические файлы |
 | sliman.openSlides | Open slides.md | Открывает файл slides.md текущей лекции |
 | sliman.buildCourse | Build Course | Собирает весь курс |

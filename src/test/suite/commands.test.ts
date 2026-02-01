@@ -18,7 +18,6 @@ import {
   createCourse,
   scanCourse,
   addLecture,
-  runLecture,
   buildLecture,
   openSlides,
   editLecture,
@@ -71,9 +70,7 @@ suite('Commands Module', () => {
       assert.strictEqual(typeof addLecture, 'function', 'addLecture should be exported as function');
     });
 
-    test('should export runLecture function', () => {
-      assert.strictEqual(typeof runLecture, 'function', 'runLecture should be exported as function');
-    });
+
 
     test('should export buildLecture function', () => {
       assert.strictEqual(typeof buildLecture, 'function', 'buildLecture should be exported as function');
@@ -158,13 +155,7 @@ suite('Commands Module', () => {
       assert.strictEqual(command.category, 'sli.dev Course', 'Should have correct category');
     });
 
-    test('should register sliman.runLecture command', () => {
-      const command = packageJson.contributes.commands.find(
-        (c) => c.command === 'sliman.runLecture'
-      );
-      assert.ok(command, 'sliman.runLecture should be registered');
-      assert.strictEqual(command.category, 'sli.dev Course', 'Should have correct category');
-    });
+
 
     test('should register sliman.buildLecture command', () => {
       const command = packageJson.contributes.commands.find(
@@ -222,9 +213,9 @@ suite('Commands Module', () => {
       assert.strictEqual(command.category, 'sli.dev Course', 'Should have correct category');
     });
 
-    test('should have exactly 12 commands registered', () => {
+    test('should have exactly 11 commands registered', () => {
       const commandCount = packageJson.contributes.commands.length;
-      assert.strictEqual(commandCount, 12, 'Should have exactly 12 commands registered');
+      assert.strictEqual(commandCount, 11, 'Should have exactly 11 commands registered');
     });
   });
 
@@ -269,12 +260,7 @@ suite('Commands Module', () => {
       );
     });
 
-    test('should export runLecture', () => {
-      assert.ok(
-        commandsContent.includes('export async function runLecture'),
-        'Should export runLecture function'
-      );
-    });
+
 
     test('should export buildLecture', () => {
       assert.ok(
@@ -494,67 +480,7 @@ suite('Commands Module', () => {
       }
     });
 
-    test('runLecture should not throw', async () => {
-      // Create temporary directory with course structure
-      const tempDir = await createTestDir('commands', 'runLecture');
-      await fs.mkdir(path.join(tempDir, 'slides'), { recursive: true });
-      await fs.writeFile(path.join(tempDir, 'sliman.json'), JSON.stringify({ course_name: 'Test Course' }), 'utf-8');
-      await fs.mkdir(path.join(tempDir, 'Test Course'), { recursive: true });
-      await fs.writeFile(path.join(tempDir, 'Test Course', 'slides.json'), JSON.stringify({ slides: [] }), 'utf-8');
-      await fs.mkdir(path.join(tempDir, 'slides', 'test-lecture'), { recursive: true });
 
-      // Initialize with mock channel
-      const mockChannel = {
-        name: 'Test',
-        appendLine: () => {},
-        append: () => {},
-        clear: () => {},
-        show: () => {},
-        hide: () => {},
-        dispose: () => {},
-        isVisible: false
-      } as unknown as vscode.OutputChannel;
-      initializeCommands(mockChannel, path.join(__dirname, '..', '..', '..'));
-
-      // Mock managers
-      const { managersContainer } = await import('../../managers/ManagersContainer');
-      const mockCourseManager = {
-        isCourseRoot: async () => true,
-        getCourseRoot: () => vscode.Uri.file(tempDir),
-        getLectureDirectories: async () => ['test-lecture']
-      };
-      const mockLectureManager = {
-        lectureExists: async () => true
-      };
-      const mockBuildManager = {
-        runDevServer: async () => {}
-      };
-
-      // Store originals
-      const originalCourseManager = (managersContainer as unknown as { _courseManager: unknown })._courseManager;
-      const originalLectureManager = (managersContainer as unknown as { _lectureManager: unknown })._lectureManager;
-      const originalBuildManager = (managersContainer as unknown as { _buildManager: unknown })._buildManager;
-
-      // Set mocks
-      (managersContainer as unknown as { _courseManager: unknown })._courseManager = mockCourseManager;
-      (managersContainer as unknown as { _lectureManager: unknown })._lectureManager = mockLectureManager;
-      (managersContainer as unknown as { _buildManager: unknown })._buildManager = mockBuildManager;
-
-      // Mock UI functions
-      const originalOpenExternal = vscode.env.openExternal;
-      vscode.env.openExternal = async () => true;
-
-      try {
-        await runLecture('test-lecture'); // Should not throw
-      } finally {
-        // Restore
-        vscode.env.openExternal = originalOpenExternal;
-        (managersContainer as unknown as { _courseManager: unknown })._courseManager = originalCourseManager;
-        (managersContainer as unknown as { _lectureManager: unknown })._lectureManager = originalLectureManager;
-        (managersContainer as unknown as { _buildManager: unknown })._buildManager = originalBuildManager;
-        await fs.rm(tempDir, { recursive: true, force: true });
-      }
-    });
 
     test('buildLecture should not throw', async () => {
       // Create temporary directory with course structure

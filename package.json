@@ -46,11 +46,7 @@
         "title": "Add Lecture",
         "category": "sli.dev Course"
       },
-      {
-        "command": "sliman.runLecture",
-        "title": "Run Lecture",
-        "category": "sli.dev Course"
-      },
+
       {
         "command": "sliman.buildLecture",
         "title": "Build Lecture",

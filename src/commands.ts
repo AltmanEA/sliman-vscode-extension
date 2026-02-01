@@ -310,68 +310,7 @@ export async function addLecture(): Promise<void> {
   }
 }
 
-/**
- * Command: sliman.runLecture
- * Launches sli.dev dev server for lecture editing
- * @param name - Lecture folder name (passed from Tree View)
- */
-export async function runLecture(name: string): Promise<void> {
-  if (!outputChannel) {
-    throw new Error('Commands not initialized');
-  }
 
-  const channel = outputChannel;
-  channel.appendLine('Command: runLecture');
-  channel.show();
-
-  const courseManager = managersContainer.courseManager;
-  const lectureManager = managersContainer.lectureManager;
-  const buildManager = managersContainer.buildManager;
-
-  if (!courseManager || !lectureManager || !buildManager) {
-    channel.appendLine('Managers not initialized');
-    void vscode.window.showErrorMessage('Managers not initialized');
-    return;
-  }
-
-  // Step 1: Check if we're in a course root
-  const isRoot = await courseManager.isCourseRoot();
-  if (!isRoot) {
-    channel.appendLine('Not in a course root directory');
-    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
-    return;
-  }
-
-  const courseRoot = courseManager.getCourseRoot();
-  channel.appendLine(`Course root: ${courseRoot.fsPath}`);
-
-  // Step 2: Get list of lectures (for logging only)
-  channel.appendLine('Getting lecture list...');
-  const lectures = await courseManager.getLectureDirectories();
-  channel.appendLine(`Found ${lectures.length} lectures`);
-  channel.appendLine('Lectures found:');
-  lectures.forEach((lecture) => channel.appendLine(`  - ${lecture}`));
-
-  // Step 3: Check if lecture exists
-  channel.appendLine(`Checking lecture: ${name}`);
-  const lectureExists = await lectureManager.lectureExists(name);
-  if (!lectureExists) {
-    channel.appendLine(`Lecture "${name}" does not exist`);
-    void vscode.window.showErrorMessage(`Lecture "${name}" does not exist`);
-    return;
-  }
-  channel.appendLine(`Lecture "${name}" exists`);
-
-  // Step 4: Run dev server
-  channel.appendLine(`Starting dev server for "${name}"...`);
-  await buildManager.runDevServer(name);
-  channel.appendLine('Dev server started');
-
-  // Step 5: Open browser (disabled - slidev opens browser automatically)
-  // channel.appendLine('Opening browser...');
-  // void vscode.env.openExternal(vscode.Uri.parse('http://localhost:3000'));
-  // channel.appendLine('Browser opened');
-}
 
 /**
  * Command: sliman.buildLecture
