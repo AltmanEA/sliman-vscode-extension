@@ -107,15 +107,10 @@
     "test": "pnpm run compile && pnpm run vscode-test",
     "vscode-test": "vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test",
     "test:course": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^CourseManager\"",
-    "test:commands": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Command\"",
-    "test:example": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Extension\"",
     "test:lecture": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Lecture\"",
-    "test:process": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Process\"",
     "test:build": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^BuildManager\"",
-    "test:translit": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^translit\"",
-    "test:extension": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Extension\"",
-    "test:courseExplorer": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^CourseExplorer\"",
-    "test:integration": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^Integration\""
+    "test:manager": "pnpm run compile && vscode-test --extensionDevelopmentPath=. --extensionTestsRoot=out/test --grep \"^ManagersContainer\"",
+    "test:all": "pnpm run test:course && pnpm run test:lecture && pnpm run test:build && pnpm run test:manager"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
