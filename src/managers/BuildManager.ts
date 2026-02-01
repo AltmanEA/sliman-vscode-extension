@@ -375,15 +375,15 @@ export class BuildManager {
     const courseDir = this.courseManager.getBuiltCourseDirWithName(courseName);
     const destDir = vscode.Uri.joinPath(courseDir, lectureName);
 
-    // Clear destination directory first
-    try {
-      await vscode.workspace.fs.delete(destDir, { recursive: true, useTrash: false });
-    } catch {
-      // Ignore error if directory doesn't exist
-    }
+    // Force delete destination directory
+    this.appendLine(`Force deleting destination directory: ${destDir.fsPath}`);
+    await vscode.workspace.fs.delete(destDir, { recursive: true, useTrash: false });
+    this.appendLine('✓ Destination directory deleted');
 
     // Create destination directory
+    this.appendLine(`Creating destination directory: ${destDir.fsPath}`);
     await vscode.workspace.fs.createDirectory(destDir);
+    this.appendLine('✓ Destination directory created');
 
     // Get slidev build output directory (should be at {sourcePath}/dist/)
     const slidevDistPath = vscode.Uri.joinPath(vscode.Uri.file(sourcePath), 'dist');
