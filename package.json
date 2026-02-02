@@ -68,16 +68,6 @@
         "category": "sli.dev Course"
       },
       {
-        "command": "sliman.buildCourse",
-        "title": "Build Course",
-        "category": "sli.dev Course"
-      },
-      {
-        "command": "sliman.setupPages",
-        "title": "Setup GitHub Pages",
-        "category": "sli.dev Course"
-      },
-      {
         "command": "sliman.viewCourse",
         "title": "View Course",
         "category": "sli.dev Course"

@@ -76,18 +76,16 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
         return [this.buildCreateCourseItem()];
       }
 
-      // Course exists - return folder structure
-      return this.buildFolderItems();
+      // Course exists - return root actions + folder structure
+      return [
+        ...this.buildRootActionItems(),
+        ...await this.buildFolderItems(),
+      ];
     }
 
     // Lectures folder - return lecture items
     if (element.id === 'lectures-folder') {
       return this.buildLectureItems();
-    }
-
-    // Actions folder - return action items
-    if (element.id === 'actions-folder') {
-      return this.buildActionItems();
     }
 
     // Lecture item - return lecture commands (View, Edit, Build)
@@ -111,10 +109,9 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
     }
 
     // Define parent-child relationships
-    const isChildOfRoot = element.id === 'lectures-folder' || element.id === 'actions-folder';
+    const isChildOfRoot = element.id === 'lectures-folder' || element.id.startsWith('root-');
     const isLectureCommand = element.id.startsWith('lecture-command-');
     const isLecture = element.id.startsWith('lecture-') && !element.id.startsWith('lecture-command-');
-    const isAction = element.id.startsWith('action-') && !element.id.startsWith('lecture-command-');
 
     if (isChildOfRoot) {
       // Return root item
@@ -142,11 +139,6 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
       return Promise.resolve(this.buildLecturesFolderItem());
     }
 
-    if (isAction) {
-      // Return actions folder
-      return Promise.resolve(this.buildActionsFolderItem());
-    }
-
     return undefined;
   }
 
@@ -169,13 +161,12 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
   // ============================================
 
   /**
-   * Builds folder items (Lectures and Actions)
-   * @returns Array with two folder items
+   * Builds folder items (Lectures only, Actions folder removed)
+   * @returns Array with Lectures folder item
    */
   private async buildFolderItems(): Promise<CourseTreeItem[]> {
     return [
       this.buildLecturesFolderItem(),
-      this.buildActionsFolderItem(),
     ];
   }
 
@@ -231,20 +222,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
     };
   }
 
-  /**
-   * Builds the Actions folder item
-   * @returns Always returns valid CourseTreeItem
-   */
-  private buildActionsFolderItem(): CourseTreeItem {
-    return {
-      id: 'actions-folder',
-      label: 'Actions',
-      type: 'action',
-      icon: '$(gear)',
-      collapsible: vscode.TreeItemCollapsibleState.Collapsed,
-      contextValue: 'actions-folder',
-    };
-  }
+
 
   /**
    * Builds lecture items from slides.json
@@ -337,15 +315,13 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
   }
 
   /**
-   * Builds action items (Add Lecture, Build course, Setup GitHub Pages, View Course)
-   * @returns Array of action tree items
+   * Builds root action items (Add Lecture, View Course)
+   * @returns Array of root action tree items
    */
-  private buildActionItems(): CourseTreeItem[] {
+  private buildRootActionItems(): CourseTreeItem[] {
     const actions: Array<{ id: string; label: string; icon: string; commandId: string }> = [
-      { id: 'action-add-lecture', label: 'Add Lecture', icon: '$(add)', commandId: 'sliman.addLecture' },
-      { id: 'action-build-course', label: 'Build course', icon: '$(tools)', commandId: 'sliman.buildCourse' },
-      { id: 'action-setup-pages', label: 'Setup GitHub Pages', icon: '$(cloud)', commandId: 'sliman.setupPages' },
-      { id: 'action-view-course', label: 'View Course', icon: '$(globe)', commandId: 'sliman.viewCourse' },
+      { id: 'root-add-lecture', label: 'Add Lecture', icon: '$(add)', commandId: 'sliman.addLecture' },
+      { id: 'root-view-course', label: 'View Course', icon: '$(globe)', commandId: 'sliman.viewCourse' },
     ];
 
     return actions.map((action): CourseTreeItem => {
@@ -360,7 +336,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
         type: 'action',
         icon: action.icon,
         command,
-        contextValue: 'action',
+        contextValue: 'root-action',
       };
     });
   }
