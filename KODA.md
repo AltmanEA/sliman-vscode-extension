@@ -43,17 +43,13 @@ src/                          # Исходный код расширения
 ├── commands.ts               # Регистрация и реализация команд
 └── test/
     ├── utils/                # Утилиты для тестов
-    │   └── testWorkspace.ts  # Унификация работы с test-workspace
+    │   ├── testWorkspace.ts  # Унификация работы с test-workspace
+    │   └── courseStructure.ts    # Утилиты для структуры курса
     └── suite/
+        ├── buildManager.test.ts    # Тесты BuildManager
         ├── courseManager.test.ts  # Тесты CourseManager
-        ├── lectureManager.test.ts  # Тесты LectureManager (40+)
-        ├── buildManager.test.ts    # Тесты BuildManager (10+)
-        ├── process.test.ts        # Тесты ProcessHelper (25+)
-        ├── commands.test.ts       # Тесты команд (187+)
-        ├── courseExplorer.test.ts # Тесты Course Explorer (16)
-        ├── extension.test.ts      # Тесты точки входа
-        ├── integration.test.ts    # Интеграционные тесты
-        └── translit.test.ts       # Тесты транслитерации
+        ├── lectureManager.test.ts  # Тесты LectureManager
+        └── managersContainer.test.ts # Тесты ManagersContainer
 
 template/                     # Шаблоны для создания курсов
 ├── slides.md                 # Шаблон лекции
@@ -63,7 +59,6 @@ template/                     # Шаблоны для создания курс�
 ├── Courser.vue               # Vue компонент курса
 └── global-top.vue            # Глобальный компонент верхней панели
 
-# Документация и планы находятся в KODA.md и других файлах проекта
 test-workspace/               # Рабочее пространство для тестов
 package.json                  # Конфигурация расширения VS Code
 tsconfig.json                 # Конфигурация TypeScript
@@ -97,10 +92,11 @@ pnpm run test:build           # Тесты BuildManager
 pnpm run test:translit        # Тесты транслитерации
 pnpm run test:extension       # Тесты точки входа
 pnpm run test:courseExplorer   # Тесты Course Explorer (добавлено)
+pnpm run test:managers        # Тесты ManagersContainer
 
 # Запуск полного набора тестов
-pnpm run test                # Запуск полного набора тестов (204+ тестов)
-pnpm run test:integration     # Интеграционные тесты (добавлено)
+pnpm run test                # Запуск полного набора тестов
+pnpm run test:integration     # Интеграционные тесты
 
 ### Отладка в VS Code
 
@@ -114,7 +110,7 @@ pnpm run test:integration     # Интеграционные тесты (доб�
 
 Тесты используют фреймворк Mocha и модуль @vscode/test-electron. Тестовые файлы располагаются в src/test/suite/. Для запуска тестов выполните pnpm run test.
 
-Все тесты используют унифицированный модуль `src/test/utils/testWorkspace.ts` для работы с временными директориями. Формат: `test-workspace-{category}-{testName}-{uniqueId}`.
+Тесты используют утилиты `src/test/utils/testWorkspace.ts` и `src/test/utils/courseStructure.ts` для работы с временными директориями.
 
 ---
 
@@ -209,28 +205,7 @@ pnpm run test:integration     # Интеграционные тесты (доб�
 - `getLectureDirectories()` — возвращает список директорий лекций
 - `readCourseData()` — читает все данные курса одной операцией
 
-#### 4. ProcessHelper — Утилита для выполнения команд
-
-Утилита для выполнения shell-команд с поддержкой npm/pnpm и streaming output.
-
-Интерфейсы:
-- `ICommandExecutor` — интерфейс исполнителя команд
-- `ProcessResult` — результат выполнения команды (success, stdout, stderr, exitCode)
-- `ProcessOptions` — опции выполнения (cwd, env, timeout, outputChannel)
-
-Статические методы:
-- `exec(command, options?)` — выполнение команды с буферизованным выводом
-- `execStream(command, options?, handler?)` — выполнение со streaming выводом
-- `execPackageManager(script, cwd, args?, options?)` — выполнение npm/pnpm скриптов
-- `installDependencies(cwd, options?)` — установка зависимостей (npm/pnpm)
-- `runBuild(cwd, options?)` — сборка презентации (npm run build)
-
-Управление исполнителем:
-- `setExecutor(executor)` — установка кастомного исполнителя
-- `resetExecutor()` — сброс к исполнителю по умолчанию
-- `detectPlatform()` — определение платформы (windows/unix)
-
-#### 5. LectureManager — Управление лекциями
+#### 4. LectureManager — Управление лекциями
 
 Класс для создания и управления структурой лекций.
 
@@ -255,32 +230,40 @@ pnpm run test:integration     # Интеграционные тесты (доб�
 Основной метод:
 - `createLecture(nameOrTitle, title?)` — создаёт полную структуру лекции
 
-#### 6. BuildManager — Сборка лекций и курса
+#### 5. BuildManager — Сборка лекций и курса
 
-Класс для сборки лекций и курса с real-time output.
+Класс для сборки лекций и курса через терминал VS Code.
 
 Интерфейсы:
-- `BuildProgress` — информация о прогрессе (lecture, stage, percent)
-- `BuildError` — структурированная информация об ошибке
+interface BuildProgress {
+  /** Lecture name (optional, for course-level builds) */
+  lecture?: string;
+  /** Current build stage */
+  stage: 'installing' | 'building' | 'copying' | 'updating' | 'complete';
+  /** Progress percentage (0-100) */
+  percent?: number;
+}
 
-Свойства:
-- `outputChannel` — канал вывода для логов сборки
+interface BuildError {
+  /** Error type */
+  type: 'lecture-not-found' | 'npm-not-found' | 'build-failed' | 'timeout';
+  /** Lecture name (if applicable) */
+  lecture?: string;
+  /** Error message */
+  message: string;
+  /** Process exit code */
+  exitCode?: number;
+}
 
-Методы output integration:
-- `attachOutput(channel)` — подключение внешнего канала вывода
-- `clearOutput()` — очистка канала вывода
-- `appendLine(message)` — добавление строки с timestamp
-- `appendBlock(block)` — добавление многострочного блока
-- `showOutput(preserveFocus?)` — показ канала вывода
-- `showProgress(progress)` — отображение прогресса в status bar
-- `hideProgress()` — скрытие status bar
-
-Методы сборки:
+Основные методы:
 - `buildLecture(name)` — сборка одной лекции (install + build)
 - `buildCourse()` — сборка всего курса (все лекции)
 - `runDevServer(name)` — запуск dev сервера лекции в терминале
+- `updateIndexHtml()` — обновление index.html со списком лекций
+- `showProgress(progress)` — отображение прогресса в status bar
+- `hideProgress()` — скрытие status bar
 
-#### 7. Constants — Константы
+#### 6. Constants — Константы
 
 Структурные константы проекта:
 
@@ -317,7 +300,7 @@ CONFIG_SECTION = 'sliDevCourse'
 CONFIG_COURSE_ROOT = 'courseRoot'
 LECTURE_CONFIG_SECTION = 'slidev'
 
-#### 8. Transliterator — Транслитерация кириллицы
+#### 7. Transliterator — Транслитерация кириллицы
 
 Утилита для преобразования кириллицы в латиницу в именах папок лекций.
 
@@ -325,6 +308,7 @@ LECTURE_CONFIG_SECTION = 'slidev'
 - `transliterate(input: string): string` — преобразует строку в Latin
 - `generateLectureFolderName(title: string): string` — генерирует имя папки из заголовка
 - `isValidFolderName(name: string): boolean` — проверяет валидность имени папки
+- `validateCourseName(name: string): { isValid: boolean; error?: string }` — валидация имени курса
 
 Особенности:
 - Поддержка русских и украинских букв (а-я, А-Я)
@@ -332,14 +316,16 @@ LECTURE_CONFIG_SECTION = 'slidev'
 - Ограничение длины: 64 символа
 - fallback: `lecture-{timestamp}` при пустом результате
 
-#### 9. Types — Типы данных
+#### 8. Types — Типы данных
 
 interface SlimanConfig {
   course_name: string;
 }
 
 interface LectureInfo {
+  /** Имя лекции (название папки) */
   name: string;
+  /** Заголовок лекции (для отображения) */
   title: string;
 }
 
@@ -372,47 +358,6 @@ interface CourseRootItem {
   uri: string;
 }
 
-// ProcessHelper типы
-interface ProcessResult {
-  success: boolean;
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-}
-
-interface ProcessOptions {
-  cwd?: string;
-  env?: Record<string, string>;
-  timeout?: number;
-  outputChannel?: vscode.OutputChannel;
-  packageManager?: 'npm' | 'pnpm';
-}
-
-interface StreamHandler {
-  (type: 'stdout' | 'stderr', data: string): void;
-}
-
-interface ICommandExecutor {
-  detectPlatform(): 'windows' | 'unix';
-  exec(command: string, options?: ProcessOptions): Promise<ProcessResult>;
-  execStream(command: string, options?: ProcessOptions, handler?: StreamHandler): Promise<ProcessResult>;
-  execPackageManager(script: string, cwd: string, args?: string[], options?: ProcessOptions): Promise<ProcessResult>;
-}
-
-// BuildManager типы
-interface BuildProgress {
-  lecture: string;
-  stage: 'install' | 'build' | 'copy';
-  percent: number;
-}
-
-interface BuildError {
-  lecture: string;
-  stage: string;
-  message: string;
-  exitCode: number;
-}
-
 // CourseExplorer типы
 interface CourseTreeItem extends vscode.TreeItem {
   type: 'root' | 'folder' | 'lecture' | 'action';
@@ -426,10 +371,10 @@ interface ManagersContainer {
   courseManager: CourseManager | null;
   lectureManager: LectureManager | null;
   buildManager: BuildManager | null;
-  refreshCourseExplorer(): void;
+  refreshCourseExplorer(): void; // Обновляет отображение Course Explorer Tree View
 }
 
-#### 10. CourseExplorer — Tree View менеджер
+#### 9. CourseExplorer — Tree View менеджер
 
 Класс для управления Course Explorer в боковой панели VS Code.
 
@@ -437,11 +382,13 @@ interface ManagersContainer {
 - `initialize(managers)` — инициализирует Tree View с менеджерами
 - `refresh()` — обновляет данные в Tree View
 - `dispose()` — освобождает ресурсы
+- `show()` — показывает Tree View в боковой панели
+- `hide()` — скрывает Tree View
 
 Свойства:
 - `treeView` — экземпляр vscode.TreeView
 
-#### 11. CourseExplorerDataProvider — Tree Data Provider
+#### 10. CourseExplorerDataProvider — Tree Data Provider
 
 Реализует vscode.TreeDataProvider для Course Explorer.
 
@@ -451,15 +398,19 @@ interface ManagersContainer {
 - `getParent(element)` — возвращает родительский элемент
 - `refresh()` — вызывает обновление Tree View
 
+Методы для работы с данными:
+- `loadCourseData()` — загружает данные курса для отображения
+- `createTreeItems()` — создаёт элементы дерева из данных курса
+
 Структура дерева:
 - Course Root (название курса)
   ├── Lectures (папка с лекциями)
-  │   └── lecture-{name} (лекция → sliman.openSlides)
+  │   └── lecture-{name} (лекция → sliman.openSlides или sliman.editLecture)
   └── Actions (папка с действиями)
       ├── Build course (→ sliman.buildCourse)
       └── Setup GitHub Pages (→ sliman.setupPages)
 
-#### 12. Commands — модуль команд
+#### 11. Commands — модуль команд
 
 Модуль для регистрации и выполнения команд VS Code.
 
@@ -468,7 +419,6 @@ interface ManagersContainer {
 - `createCourse()` — создание нового курса
 - `addLecture()` — добавление новой лекции
 - `scanCourse()` — сканирование курса
-
 - `buildLecture(name)` — сборка лекции
 - `openSlides(name)` — открытие slides.md
 - `buildCourse()` — сборка всего курса
@@ -480,6 +430,7 @@ interface ManagersContainer {
 Интеграция с Tree View:
 - createCourse() → refreshCourseExplorer()
 - addLecture() → refreshCourseExplorer()
+- deleteLecture() → refreshCourseExplorer()
 
 ---
 
@@ -494,7 +445,7 @@ interface ManagersContainer {
 | sliman.deleteLecture | Delete Lecture | Удаляет лекцию с подтверждением |
 | sliman.viewCourse | View Course | Запускает HTTP сервер для просмотра собранного курса |
 
-| sliman.buildLecture | Build Lecture | Собирает лекцию в статические файлы |
+| sliman.buildLecture | Build Lecture | Собирает лекцию в терминале с автокопированием в директорию курса |
 | sliman.openSlides | Open slides.md | Открывает файл slides.md текущей лекции |
 | sliman.buildCourse | Build Course | Собирает весь курс |
 | sliman.setupPages | Setup GitHub Pages | Настраивает GitHub Pages для курса |
@@ -589,7 +540,7 @@ const tempDir = await createTestDir('manager', 'path-resolution');
 // Очистка конкретной директории
 await cleanupTestDir(tempDir);
 
-// Глобальная очистка в suiteTeardown (только в extension.test.ts)
+// Глобальная очистка в suiteTeardown
 suiteTeardown(async () => {
   await cleanupAllTestDirs();
 });
@@ -612,4 +563,5 @@ suiteTeardown(async () => {
 - sli.dev (Slidev): Latest версия через npm (для скомпилированных курсов)
 - Node.js: LTS версия (^18.18.0)
 - VS Code: ^1.85.0
-- pnpm: Рекомендуется как менеджер пакетов"
+- pnpm: Рекомендуется как менеджер пакетов
+- http-server: Для запуска локального сервера просмотра курса"
