@@ -210,4 +210,114 @@ export class BuildManager {
       await this.hideProgress();
     }
   }
+
+  /**
+   * Updates index.html with lecture list from slides.json
+   * Finds <!-- Place to insert slide list --><div id="slide_list"></div>
+   * and replaces the content with a numbered list of lectures
+   * @returns Promise that resolves when update is complete
+   */
+  async updateIndexHtml(): Promise<void> {
+    try {
+      // Get course name for building paths
+      const courseName = await this.courseManager.readCourseName();
+      if (!courseName) {
+        throw new Error('Course name not found in sliman.json');
+      }
+
+      // Path to index.html: {courseRoot}/{courseName}/index.html
+      const courseRoot = this.courseManager.getCourseRoot();
+      const indexHtmlPath = vscode.Uri.joinPath(courseRoot, courseName, 'index.html');
+
+      // Read current index.html content
+      let indexHtmlContent: string;
+      try {
+        const fileContent = await vscode.workspace.fs.readFile(indexHtmlPath);
+        indexHtmlContent = new TextDecoder().decode(fileContent);
+      } catch (error) {
+        throw new Error(`Failed to read index.html: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+
+      // Read slides.json to get lecture list
+      let slidesConfig: { slides: Array<{ name: string; title: string }> };
+      try {
+        const slidesPath = vscode.Uri.joinPath(courseRoot, courseName, 'slides.json');
+        const slidesContent = await vscode.workspace.fs.readFile(slidesPath);
+        slidesConfig = JSON.parse(new TextDecoder().decode(slidesContent));
+      } catch (error) {
+        throw new Error(`Failed to read slides.json: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+
+      // Generate numbered list HTML
+      const lectureListHtml = this.generateLectureListHtml(slidesConfig.slides);
+
+      // Find and replace the slide_list div content
+      const placeholderPattern = /<!-- Place to insert slide list -->[\s\S]*?<div id="slide_list">[\s\S]*?<\/div>/;
+      
+      if (placeholderPattern.test(indexHtmlContent)) {
+        const replacement = `<!-- Place to insert slide list -->\n${lectureListHtml}`;
+        indexHtmlContent = indexHtmlContent.replace(placeholderPattern, replacement);
+      } else {
+        // If placeholder not found, try to find just the div
+        const divPattern = /<div id="slide_list">[\s\S]*?<\/div>/;
+        if (divPattern.test(indexHtmlContent)) {
+          indexHtmlContent = indexHtmlContent.replace(divPattern, lectureListHtml);
+        } else {
+          throw new Error('Could not find slide_list div in index.html');
+        }
+      }
+
+      // Write updated content back to index.html
+      try {
+        await vscode.workspace.fs.writeFile(
+          indexHtmlPath,
+          new TextEncoder().encode(indexHtmlContent)
+        );
+      } catch (error) {
+        throw new Error(`Failed to write index.html: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+
+    } catch (error) {
+      // Log error but don't throw - preserve existing content
+      console.error('Failed to update index.html:', error);
+      // Could also log to output channel if available
+    }
+  }
+
+  /**
+   * Generates HTML for numbered list of lectures
+   * @param lectures - Array of lecture objects with name and title
+   * @returns HTML string with numbered list
+   */
+  private generateLectureListHtml(lectures: Array<{ name: string; title: string }>): string {
+    if (!lectures || lectures.length === 0) {
+      return '<div id="slide_list"><p>Лекции не найдены</p></div>';
+    }
+
+    const listItems = lectures.map(lecture => {
+      const safeTitle = this.escapeHtml(lecture.title);
+      const safeName = this.escapeHtml(lecture.name);
+      return `  <li><a href="./${safeName}">${safeTitle}</a></li>`;
+    }).join('\n');
+
+    return `<div id="slide_list">
+<ol>
+${listItems}
+</ol>
+</div>`;
+  }
+
+  /**
+   * Escapes HTML characters to prevent XSS
+   * @param text - Text to escape
+   * @returns Escaped text
+   */
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 }

@@ -297,6 +297,20 @@ export async function addLecture(): Promise<void> {
     channel.appendLine('[ADD] Creating lecture...');
     await lectureManager.createLecture(folderName, title);
     channel.appendLine(`[ADD] ✓ Lecture "${title}" created successfully!`);
+
+    // Step 7: Update index.html with new lecture list
+    const buildManager = managersContainer.buildManager;
+    if (buildManager) {
+      try {
+        channel.appendLine('[ADD] Updating index.html with lecture list...');
+        await buildManager.updateIndexHtml();
+        channel.appendLine('[ADD] ✓ index.html updated successfully');
+      } catch (updateError) {
+        channel.appendLine(`[ADD] Warning: Failed to update index.html: ${updateError instanceof Error ? updateError.message : 'Unknown error'}`);
+        // Don't throw - lecture creation was successful
+      }
+    }
+
     void vscode.window.showInformationMessage(`Lecture "${title}" created!`);
 
     // Refresh Course Explorer tree view

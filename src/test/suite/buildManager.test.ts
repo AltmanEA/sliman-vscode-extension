@@ -5,11 +5,13 @@
 import * as assert from 'assert';
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from 'fs/promises';
 import { CourseManager } from '../../managers/CourseManager';
 import { LectureManager } from '../../managers/LectureManager';
+import type { BuildProgress } from '../../managers/BuildManager';
 import { BuildManager } from '../../managers/BuildManager';
 import { createTestDir, cleanupTestDir, cleanupAllTestDirs } from '../utils/testWorkspace';
-import { createMinimalCourse } from '../utils/courseStructure';
+import { createMinimalCourse, createCourseStructure, createCourseWithEmptySlides } from '../utils/courseStructure';
 
 suite('BuildManager Tests', () => {
   let tempDir: string;
@@ -71,7 +73,7 @@ suite('BuildManager Tests', () => {
   // Progress Display Tests
   suite('Progress Display Tests', () => {
     test('showProgress updates status bar', async () => {
-      const progress: import('../../managers/BuildManager').BuildProgress = {
+      const progress: BuildProgress = {
         lecture: 'test-lecture',
         stage: 'building',
         percent: 50
@@ -84,7 +86,7 @@ suite('BuildManager Tests', () => {
     });
 
     test('showProgress handles lecture-specific progress', async () => {
-      const progress: import('../../managers/BuildManager').BuildProgress = {
+      const progress: BuildProgress = {
         lecture: 'specific-lecture',
         stage: 'installing',
         percent: 25
@@ -95,7 +97,7 @@ suite('BuildManager Tests', () => {
     });
 
     test('showProgress handles course-level progress', async () => {
-      const progress: import('../../managers/BuildManager').BuildProgress = {
+      const progress: BuildProgress = {
         stage: 'building',
         percent: 75
       };
@@ -212,7 +214,7 @@ suite('BuildManager Tests', () => {
   // Edge Cases Tests
   suite('Edge Cases Tests', () => {
     test('showProgress handles undefined percent', async () => {
-      const progress: import('../../managers/BuildManager').BuildProgress = {
+      const progress: BuildProgress = {
         stage: 'building'
         // No percent provided
       };
@@ -222,7 +224,7 @@ suite('BuildManager Tests', () => {
     });
 
     test('showProgress handles empty lecture name', async () => {
-      const progress: import('../../managers/BuildManager').BuildProgress = {
+      const progress: BuildProgress = {
         lecture: '', // Empty lecture name
         stage: 'building'
       };
@@ -239,6 +241,297 @@ suite('BuildManager Tests', () => {
       buildManager.dispose();
       
       assert.ok(true);
+    });
+  });
+
+  // Update Index.html Tests (new functionality)
+  suite('Update Index.html Tests', () => {
+    test('should update index.html with lecture list from slides.json', async () => {
+      // Create test course structure with lectures
+      const courseName = 'test-course';
+      await createCourseStructure(tempDir, courseName, [
+        { name: 'lecture-1', title: 'Lecture 1' },
+        { name: 'lecture-2', title: 'Lecture 2' }
+      ]);
+
+      // Create initial index.html with old content
+      const courseDir = path.join(tempDir, courseName);
+      const indexHtmlPath = path.join(courseDir, 'index.html');
+      
+      const initialIndexHtml = `<!-- Place to insert slide list -->
+<div id="slide_list">
+  <p>Old content</p>
+</div>`;
+      
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(indexHtmlPath),
+        new Uint8Array(Buffer.from(initialIndexHtml, 'utf-8'))
+      );
+
+      // Update index.html
+      await buildManager.updateIndexHtml();
+
+      // Verify updated content
+      const updatedContent = await fs.readFile(indexHtmlPath, 'utf-8');
+
+      // Should contain new lecture list
+      assert.ok(updatedContent.includes('<ol>'));
+      assert.ok(updatedContent.includes('Lecture 1'));
+      assert.ok(updatedContent.includes('Lecture 2'));
+      assert.ok(updatedContent.includes('./lecture-1'));
+      assert.ok(updatedContent.includes('./lecture-2'));
+      
+      // Should not contain old content
+      assert.ok(!updatedContent.includes('Old content'));
+    });
+
+    test('should handle empty lecture list', async () => {
+      const courseName = 'test-course-empty';
+      
+      await createCourseWithEmptySlides(tempDir, courseName);
+
+      // Create initial index.html with old content
+      const courseDir = path.join(tempDir, courseName);
+      const indexHtmlPath = path.join(courseDir, 'index.html');
+      
+      const initialIndexHtml = `<!-- Place to insert slide list -->
+<div id="slide_list">
+  <p>Old content</p>
+</div>`;
+      
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(indexHtmlPath),
+        new Uint8Array(Buffer.from(initialIndexHtml, 'utf-8'))
+      );
+
+      // Update index.html
+      await buildManager.updateIndexHtml();
+
+      // Verify updated content
+      const updatedContent = await fs.readFile(indexHtmlPath, 'utf-8');
+
+      // Should show "no lectures" message
+      assert.ok(updatedContent.includes('Лекции не найдены'));
+    });
+
+    test('should handle missing index.html gracefully', async () => {
+      const courseName = 'test-course-missing';
+      
+      // Create course structure without index.html
+      await createMinimalCourse(tempDir, courseName);
+      
+      // Create course directory and slides.json
+      const courseDir = path.join(tempDir, courseName);
+      const slidesJsonPath = path.join(courseDir, 'slides.json');
+
+      await fs.mkdir(courseDir, { recursive: true });
+
+      const slidesConfig = { slides: [{ name: 'lecture-1', title: 'Lecture 1' }] };
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(slidesJsonPath),
+        new Uint8Array(Buffer.from(JSON.stringify(slidesConfig, null, 2), 'utf-8'))
+      );
+
+      // Should not throw, should log error
+      await buildManager.updateIndexHtml();
+      // If we reach here without throwing, test passes
+    });
+
+    test('should handle missing slides.json gracefully', async () => {
+      const courseName = 'test-course-missing-slides';
+      
+      // Create minimal course without slides.json
+      await createMinimalCourse(tempDir, courseName);
+      
+      // Create course directory with index.html but no slides.json
+      const courseDir = path.join(tempDir, courseName);
+      const indexHtmlPath = path.join(courseDir, 'index.html');
+
+      await fs.mkdir(courseDir, { recursive: true });
+
+      // Create initial index.html
+      const initialIndexHtml = `<!-- Place to insert slide list -->
+<div id="slide_list">
+  <p>Old content</p>
+</div>`;
+      
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(indexHtmlPath),
+        new Uint8Array(Buffer.from(initialIndexHtml, 'utf-8'))
+      );
+
+      // Should not throw, should log error
+      await buildManager.updateIndexHtml();
+      // If we reach here without throwing, test passes
+    });
+
+    test('should handle malformed slides.json gracefully', async () => {
+      const courseName = 'test-course-malformed';
+      
+      // Create minimal course
+      await createMinimalCourse(tempDir, courseName);
+      
+      // Create course directory with index.html and malformed slides.json
+      const courseDir = path.join(tempDir, courseName);
+      const indexHtmlPath = path.join(courseDir, 'index.html');
+      const slidesJsonPath = path.join(courseDir, 'slides.json');
+
+      await fs.mkdir(courseDir, { recursive: true });
+
+      // Create initial index.html
+      const initialIndexHtml = `<!-- Place to insert slide list -->
+<div id="slide_list">
+  <p>Old content</p>
+</div>`;
+      
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(indexHtmlPath),
+        new Uint8Array(Buffer.from(initialIndexHtml, 'utf-8'))
+      );
+
+      // Write malformed JSON
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(slidesJsonPath),
+        new Uint8Array(Buffer.from('{ invalid json }', 'utf-8'))
+      );
+
+      // Should not throw, should log error
+      await buildManager.updateIndexHtml();
+      // If we reach here without throwing, test passes
+    });
+
+    test('should preserve existing content when update fails', async () => {
+      const courseName = 'test-course-preserve';
+      
+      // Create minimal course
+      await createMinimalCourse(tempDir, courseName);
+      
+      // Create course directory with index.html and malformed slides.json
+      const courseDir = path.join(tempDir, courseName);
+      const indexHtmlPath = path.join(courseDir, 'index.html');
+      const slidesJsonPath = path.join(courseDir, 'slides.json');
+
+      await fs.mkdir(courseDir, { recursive: true });
+
+      // Create initial index.html
+      const initialIndexHtml = `<!-- Place to insert slide list -->
+<div id="slide_list">
+  <p>Old content that should be preserved</p>
+</div>`;
+      
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(indexHtmlPath),
+        new Uint8Array(Buffer.from(initialIndexHtml, 'utf-8'))
+      );
+
+      // Write malformed JSON to cause update to fail
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(slidesJsonPath),
+        new Uint8Array(Buffer.from('{ invalid json }', 'utf-8'))
+      );
+
+      // Try to update (should fail but preserve content)
+      await buildManager.updateIndexHtml();
+
+      const finalContent = await fs.readFile(indexHtmlPath, 'utf-8');
+
+      // Content should remain unchanged
+      assert.strictEqual(finalContent, initialIndexHtml);
+    });
+
+    test('should escape HTML in lecture titles and names', async () => {
+      const courseName = 'test-course-escape';
+      
+      // Create minimal course
+      await createMinimalCourse(tempDir, courseName);
+      
+      // Create course directory with index.html
+      const courseDir = path.join(tempDir, courseName);
+      const indexHtmlPath = path.join(courseDir, 'index.html');
+      const slidesJsonPath = path.join(courseDir, 'slides.json');
+
+      await fs.mkdir(courseDir, { recursive: true });
+
+      // Create initial index.html
+      const initialIndexHtml = `<!-- Place to insert slide list -->
+<div id="slide_list">
+  <p>Old content</p>
+</div>`;
+      
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(indexHtmlPath),
+        new Uint8Array(Buffer.from(initialIndexHtml, 'utf-8'))
+      );
+
+      // Update slides.json with HTML special characters
+      const slidesConfig = {
+        slides: [
+          { name: 'lecture-with<script>', title: 'Title with <script>alert("xss")</script>' }
+        ]
+      };
+      
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(slidesJsonPath),
+        new Uint8Array(Buffer.from(JSON.stringify(slidesConfig, null, 2), 'utf-8'))
+      );
+
+      // Update index.html
+      await buildManager.updateIndexHtml();
+
+      // Verify updated content
+      const updatedContent = await fs.readFile(indexHtmlPath, 'utf-8');
+
+      // Should contain escaped HTML
+      assert.ok(updatedContent.includes('&lt;script&gt;'));
+      assert.ok(updatedContent.includes('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;'));
+      
+      // Should not contain unescaped HTML
+      assert.ok(!updatedContent.includes('<script>'));
+    });
+
+    test('should find div even without comment placeholder', async () => {
+      const courseName = 'test-course-no-comment';
+      
+      // Create minimal course
+      await createMinimalCourse(tempDir, courseName);
+      
+      // Create course directory with index.html without comment
+      const courseDir = path.join(tempDir, courseName);
+      const indexHtmlPath = path.join(courseDir, 'index.html');
+      const slidesJsonPath = path.join(courseDir, 'slides.json');
+
+      await fs.mkdir(courseDir, { recursive: true });
+
+      // Write index.html without comment placeholder
+      const initialIndexHtml = `<div id="slide_list">
+  <p>Old content</p>
+</div>`;
+      
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(indexHtmlPath),
+        new Uint8Array(Buffer.from(initialIndexHtml, 'utf-8'))
+      );
+
+      // Create slides.json
+      const slidesConfig = { slides: [{ name: 'lecture-1', title: 'Lecture 1' }] };
+      
+      await vscode.workspace.fs.writeFile(
+        vscode.Uri.file(slidesJsonPath),
+        new Uint8Array(Buffer.from(JSON.stringify(slidesConfig, null, 2), 'utf-8'))
+      );
+
+      // Update index.html
+      await buildManager.updateIndexHtml();
+
+      // Verify updated content
+      const updatedContent = await fs.readFile(indexHtmlPath, 'utf-8');
+
+      // Should contain new lecture list
+      assert.ok(updatedContent.includes('<ol>'));
+      assert.ok(updatedContent.includes('Lecture 1'));
+      
+      // Should not contain old content
+      assert.ok(!updatedContent.includes('Old content'));
     });
   });
 });
