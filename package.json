@@ -1,9 +1,13 @@
 {
-  "name": "sli.dev-course-manager",
+  "name": "sliman",
   "displayName": "sli.dev Course manager",
   "description": "Managing a course from presentations on sli.dev",
   "version": "0.0.1",
   "publisher": "AltmanEA",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AltmanEA/sliman-vscode-extension.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
