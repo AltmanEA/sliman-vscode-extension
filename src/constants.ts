@@ -28,8 +28,13 @@ export const TEMPLATE_SLIDES = 'slides.md';
 export const TEMPLATE_INDEX = 'index.html';
 export const TEMPLATE_PACKAGE = 'package.json';
 export const TEMPLATE_STATIC = 'static.yml';
+export const TEMPLATE_GITIGNORE = '.gitignore';
 export const TEMPLATE_GLOBAL_TOP = 'global-top.vue';
 export const TEMPLATE_COURSER = 'Courser.vue';
+
+/** GitHub workflow constants */
+export const GITHUB_WORKFLOWS_DIR = '.github/workflows';
+export const WORKFLOW_FILENAME = 'static.yml';
 
 /** Metadata keys for slides frontmatter */
 export const KEY_TITLE = 'title';

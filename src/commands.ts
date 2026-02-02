@@ -144,8 +144,46 @@ export async function createCourse(): Promise<void> {
       channel.appendLine(`[CREATE] Warning: Could not copy index.html template: ${templateError}`);
     }
 
+    // Step 5: Create GitHub Actions workflow for Pages deployment
+    channel.appendLine('[CREATE] Setting up GitHub Pages workflow...');
+    try {
+      // Create .github/workflows directory
+      const workflowsDir = path.join(coursePath, '.github', 'workflows');
+      await fs.mkdir(workflowsDir, { recursive: true });
+      channel.appendLine('[CREATE] ✓ Created .github/workflows directory');
+
+      // Copy and fill static.yml template
+      const templateStaticPath = path.join(extensionPath, 'template', 'static.yml');
+      const staticYmlPath = path.join(workflowsDir, 'static.yml');
+      let staticContent = await fs.readFile(templateStaticPath, 'utf-8');
+      
+      // Replace {{COURSE_NAME}} placeholder with actual course name
+      staticContent = staticContent.replace(/{{COURSE_NAME}}/g, courseName);
+      
+      await fs.writeFile(staticYmlPath, staticContent);
+      channel.appendLine(`[CREATE] ✓ Created GitHub workflow: ${staticYmlPath}`);
+    } catch (workflowError) {
+      channel.appendLine(`[CREATE] Warning: Could not create GitHub workflow: ${workflowError}`);
+    }
+
+    // Step 6: Create .gitignore file
+    channel.appendLine('[CREATE] Creating .gitignore file...');
+    try {
+      const templateGitignorePath = path.join(extensionPath, 'template', '.gitignore');
+      const gitignorePath = path.join(coursePath, '.gitignore');
+      let gitignoreContent = await fs.readFile(templateGitignorePath, 'utf-8');
+      
+      // Replace {{COURSE_NAME}} placeholder with actual course name
+      gitignoreContent = gitignoreContent.replace(/{{COURSE_NAME}}/g, courseName);
+      
+      await fs.writeFile(gitignorePath, gitignoreContent);
+      channel.appendLine(`[CREATE] ✓ Created .gitignore file: ${gitignorePath}`);
+    } catch (gitignoreError) {
+      channel.appendLine(`[CREATE] Warning: Could not create .gitignore: ${gitignoreError}`);
+    }
+
     channel.appendLine(`[CREATE] ✓ Course "${courseName}" created successfully!`);
-    void vscode.window.showInformationMessage(`Course "${courseName}" created!`);
+    void vscode.window.showInformationMessage(`Course "${courseName}" created! GitHub Pages workflow and .gitignore configured.`);
 
     // Refresh Course Explorer tree view
     managersContainer.refreshCourseExplorer();
@@ -668,75 +706,12 @@ export async function buildCourse(): Promise<void> {
   }
 }
 
-/**
- * Command: sliman.setupPages
- * Configures GitHub Actions workflow for Pages deployment
- */
-export async function setupPages(): Promise<void> {
-  if (!outputChannel) {
-    throw new Error('Commands not initialized');
-  }
 
-  const channel = outputChannel;
-  channel.appendLine('[PAGES] Command: setupPages');
-  channel.show();
-
-  const courseManager = managersContainer.courseManager;
-
-  if (!courseManager) {
-    channel.appendLine('[PAGES] ✗ Managers not initialized');
-    void vscode.window.showErrorMessage('Managers not initialized');
-    return;
-  }
-
-  // Step 1: Check if we're in a course root
-  const isRoot = await courseManager.isCourseRoot();
-  if (!isRoot) {
-    channel.appendLine('[PAGES] ✗ Not in a course root directory');
-    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
-    return;
-  }
-
-  const courseRoot = courseManager.getCourseRoot();
-  channel.appendLine(`[PAGES] Course root: ${courseRoot.fsPath}`);
-
-  // Step 2: Create GitHub Actions workflow
-  channel.appendLine('[PAGES] Setting up GitHub Pages...');
-
-  try {
-    // Create .github/workflows directory
-    const workflowsDir = vscode.Uri.joinPath(courseRoot, '.github', 'workflows');
-    await vscode.workspace.fs.createDirectory(workflowsDir);
-    channel.appendLine('[PAGES] ✓ Created .github/workflows directory');
-
-    // Copy static.yml template
-    const templateUri = vscode.Uri.joinPath(
-      vscode.Uri.file(extensionPath),
-      'template',
-      'static.yml'
-    );
-    const staticYmlUri = vscode.Uri.joinPath(workflowsDir, 'static.yml');
-
-    const templateContent = await vscode.workspace.fs.readFile(templateUri);
-    await vscode.workspace.fs.writeFile(staticYmlUri, templateContent);
-    channel.appendLine('[PAGES] ✓ Created .github/workflows/static.yml');
-
-    // Show instructions
-    channel.appendLine('[PAGES] ✓ GitHub Pages setup complete');
-    void vscode.window.showInformationMessage(
-      'GitHub Pages workflow created! Push to GitHub and enable Pages in repository settings.'
-    );
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    channel.appendLine(`[PAGES] ✗ Setup failed: ${errorMessage}`);
-    void vscode.window.showErrorMessage(`Setup failed: ${errorMessage}`);
-  }
-}
 
 /**
  * Command: sliman.viewCourse
  * Starts HTTP server in project root and opens built course in browser
- * Launches npx http-server . and opens browser to /course_name/index.html
+ * Launches npx http-server . -c-1 (no caching) and opens browser to /course_name/index.html
  */
 export async function viewCourse(): Promise<void> {
   if (!outputChannel) {
@@ -787,10 +762,10 @@ export async function viewCourse(): Promise<void> {
     void vscode.window.showWarningMessage('Built course not found. The course may not be built yet.');
   }
 
-  // Step 4: Create terminal and start HTTP server in project root
+  // Step 4: Create terminal and start HTTP server in project root (no caching)
   const terminal = vscode.window.createTerminal('sli.dev Course Viewer');
-  const command = `npx http-server . -p 8080`;
-  channel.appendLine(`[VIEW] Starting HTTP server: ${command}`);
+  const command = `npx http-server . -p 8080 -c-1`;
+  channel.appendLine(`[VIEW] Starting HTTP server (no caching): ${command}`);
   
   terminal.sendText(command);
   terminal.show();
