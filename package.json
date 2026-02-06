@@ -2,7 +2,7 @@
   "name": "sliman",
   "displayName": "sli.dev Course manager",
   "description": "Managing a course from presentations on sli.dev",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "AltmanEA",
   "repository": {
     "type": "git",
@@ -15,6 +15,31 @@
     "Other"
   ],
   "main": "./out/extension.js",
+  "activationEvents": [
+    "onView:courseExplorer",
+    "onCommand:sliman.createCourse",
+    "onCommand:sliman.scanCourse",
+    "onCommand:sliman.addLecture",
+    "onCommand:sliman.buildLecture",
+    "onCommand:sliman.openSlides",
+    "onCommand:sliman.editLecture",
+    "onCommand:sliman.deleteLecture",
+    "onCommand:sliman.viewCourse",
+    "onCommand:sliman.testIcons",
+    "onCommand:courseExplorer.refresh"
+  ],
+  "keywords": [
+    "slidev",
+    "sli.dev",
+    "presentation",
+    "course",
+    "education"
+  ],
+  "files": [
+    "out/**/*",
+    "template/**/*",
+    "resources/**/*"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -74,6 +99,11 @@
       {
         "command": "sliman.viewCourse",
         "title": "View Course",
+        "category": "sli.dev Course"
+      },
+      {
+        "command": "sliman.testIcons",
+        "title": "Test Icons",
         "category": "sli.dev Course"
       },
       {

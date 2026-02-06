@@ -15,8 +15,8 @@ export interface CourseTreeItem {
   label: string;
   /** Tree item type: 'root', 'lecture', 'action', 'folder' */
   type: 'root' | 'lecture' | 'action' | 'folder';
-  /** Codicon name (e.g., '$(file-code)') */
-  icon?: string;
+  /** VS Code ThemeIcon for the tree item */
+  icon?: vscode.ThemeIcon;
   /** Command to execute when item is clicked */
   command?: vscode.Command;
   /** Child items (for root and folder nodes) */

@@ -345,4 +345,243 @@ Content here
       assert.strictEqual(exists, true);
     });
   });
+
+  // Module System Tests
+  suite('Module System Tests', () => {
+    test('createModularPackageJson creates package.json with selected modules', async () => {
+      const lectureName = 'module-test';
+      await lectureManager.createLectureDir(lectureName);
+      
+      const selectedModules = ['shiki'];
+      await lectureManager.createModularPackageJson(lectureName, selectedModules);
+      
+      const packagePath = lectureManager.getLecturePackagePath(lectureName);
+      const packageContent = await fs.readFile(packagePath.fsPath, 'utf-8');
+      const packageJson = JSON.parse(packageContent);
+      
+      assert.ok(packageJson.dependencies);
+      assert.strictEqual(packageJson.dependencies.shiki, 'latest');
+      assert.strictEqual(packageJson.name, lectureName);
+    });
+
+    test('createModularPackageJson handles empty module selection', async () => {
+      const lectureName = 'no-modules-test';
+      await lectureManager.createLectureDir(lectureName);
+      
+      const selectedModules: string[] = [];
+      await lectureManager.createModularPackageJson(lectureName, selectedModules);
+      
+      const packagePath = lectureManager.getLecturePackagePath(lectureName);
+      const packageContent = await fs.readFile(packagePath.fsPath, 'utf-8');
+      const packageJson = JSON.parse(packageContent);
+      
+      // Should have only base dependencies
+      assert.ok(packageJson.dependencies);
+      assert.strictEqual(packageJson.dependencies['@slidev/cli'], '^52.0.0');
+      assert.strictEqual(packageJson.dependencies.vue, '^3.5.17');
+    });
+
+    test('copyModuleConfigs creates config files for selected modules', async () => {
+      const lectureName = 'config-files-test';
+      await lectureManager.createLectureDir(lectureName);
+      
+      const selectedModules = ['shiki'];
+      await lectureManager.copyModuleConfigs(lectureName, selectedModules);
+      
+      const configPath = vscode.Uri.joinPath(lectureManager.getLectureDir(lectureName), 'shiki.config.ts');
+      const configExists = await fs.access(configPath.fsPath).then(() => true).catch(() => false);
+      assert.strictEqual(configExists, true);
+      
+      const configContent = await fs.readFile(configPath.fsPath, 'utf-8');
+      assert.ok(configContent.includes('defineConfig'));
+      assert.ok(configContent.includes('shiki'));
+    });
+
+    test('copyModuleConfigs handles non-existent module gracefully', async () => {
+      const lectureName = 'invalid-module-test';
+      await lectureManager.createLectureDir(lectureName);
+      
+      const selectedModules = ['non-existent-module'];
+      
+      // Should not throw error
+      await assert.doesNotReject(
+        () => lectureManager.copyModuleConfigs(lectureName, selectedModules)
+      );
+    });
+
+    test('createLectureWithModules creates complete lecture structure with modules', async () => {
+      await createCourseStructureForTests();
+      
+      const lectureName = 'full-module-test';
+      const lectureTitle = 'Full Module Test Lecture';
+      const selectedModules = ['shiki'];
+      
+      const result = await lectureManager.createLectureWithModules(lectureName, lectureTitle, selectedModules);
+      
+      assert.strictEqual(result, lectureName);
+      
+      // Check that lecture directory was created
+      const lectureDir = lectureManager.getLectureDir(lectureName);
+      const dirExists = await fs.access(lectureDir.fsPath).then(() => true).catch(() => false);
+      assert.strictEqual(dirExists, true);
+      
+      // Check that package.json was created with modules
+      const packagePath = lectureManager.getLecturePackagePath(lectureName);
+      const packageContent = await fs.readFile(packagePath.fsPath, 'utf-8');
+      const packageJson = JSON.parse(packageContent);
+      assert.strictEqual(packageJson.dependencies.shiki, 'latest');
+      
+      // Check that config file was created
+      const configPath = vscode.Uri.joinPath(lectureDir, 'shiki.config.ts');
+      const configExists = await fs.access(configPath.fsPath).then(() => true).catch(() => false);
+      assert.strictEqual(configExists, true);
+      
+      // Check that slides.json was updated
+      const slidesConfig = await courseManager.readSlidesJson();
+      assert.strictEqual(slidesConfig?.slides.length, 1);
+      assert.strictEqual(slidesConfig?.slides[0].name, lectureName);
+      assert.strictEqual(slidesConfig?.slides[0].title, lectureTitle);
+    });
+
+    test('createLectureWithModules handles empty module selection', async () => {
+      await createCourseStructureForTests();
+      
+      const lectureName = 'no-modules-full-test';
+      const lectureTitle = 'No Modules Full Test';
+      const selectedModules: string[] = [];
+      
+      const result = await lectureManager.createLectureWithModules(lectureName, lectureTitle, selectedModules);
+      
+      assert.strictEqual(result, lectureName);
+      
+      // Check that lecture directory was created
+      const lectureDir = lectureManager.getLectureDir(lectureName);
+      const dirExists = await fs.access(lectureDir.fsPath).then(() => true).catch(() => false);
+      assert.strictEqual(dirExists, true);
+      
+      // Check that package.json was created without module dependencies
+      const packagePath = lectureManager.getLecturePackagePath(lectureName);
+      const packageContent = await fs.readFile(packagePath.fsPath, 'utf-8');
+      const packageJson = JSON.parse(packageContent);
+      assert.strictEqual(packageJson.dependencies.shiki, undefined);
+    });
+
+    test('copyModuleConfigs creates slidev.config.ts for Monaco Editor', async () => {
+      const lectureName = 'monaco-config-test';
+      await lectureManager.createLectureDir(lectureName);
+      
+      const selectedModules = ['monaco'];
+      await lectureManager.copyModuleConfigs(lectureName, selectedModules);
+      
+      // Monaco should create slidev.config.ts, not monaco.config.ts
+      const configPath = vscode.Uri.joinPath(lectureManager.getLectureDir(lectureName), 'slidev.config.ts');
+      const configExists = await fs.access(configPath.fsPath).then(() => true).catch(() => false);
+      assert.strictEqual(configExists, true);
+      
+      const configContent = await fs.readFile(configPath.fsPath, 'utf-8');
+      assert.ok(configContent.includes('defineConfig'));
+      assert.ok(configContent.includes('monaco: true'));
+      assert.ok(configContent.includes('monacoOptions'));
+      assert.ok(configContent.includes('theme: \'vs-dark\''));
+      assert.ok(configContent.includes('monaco'));
+    });
+
+    test('copyModuleConfigs creates slidev.config.ts with multiple modules', async () => {
+      const lectureName = 'multi-module-config-test';
+      await lectureManager.createLectureDir(lectureName);
+      
+      const selectedModules = ['monaco', 'shiki', 'katex'];
+      await lectureManager.copyModuleConfigs(lectureName, selectedModules);
+      
+      const configPath = vscode.Uri.joinPath(lectureManager.getLectureDir(lectureName), 'slidev.config.ts');
+      const configExists = await fs.access(configPath.fsPath).then(() => true).catch(() => false);
+      assert.strictEqual(configExists, true);
+      
+      const configContent = await fs.readFile(configPath.fsPath, 'utf-8');
+      assert.ok(configContent.includes('defineConfig'));
+      assert.ok(configContent.includes('monaco: true'));
+      assert.ok(configContent.includes('shiki: {'));
+      assert.ok(configContent.includes('katex: {'));
+      assert.ok(configContent.includes('theme: \'vs-dark\''));
+      assert.ok(configContent.includes('github-dark'));
+    });
+
+    test('copyModuleConfigs creates drauu.config.ts for Drauu module', async () => {
+      const lectureName = 'drauu-config-test';
+      await lectureManager.createLectureDir(lectureName);
+      
+      const selectedModules = ['drauu'];
+      await lectureManager.copyModuleConfigs(lectureName, selectedModules);
+      
+      // Drauu should create drauu.config.ts (separate config file)
+      const configPath = vscode.Uri.joinPath(lectureManager.getLectureDir(lectureName), 'drauu.config.ts');
+      const configExists = await fs.access(configPath.fsPath).then(() => true).catch(() => false);
+      assert.strictEqual(configExists, true);
+      
+      const configContent = await fs.readFile(configPath.fsPath, 'utf-8');
+      assert.ok(configContent.includes('defineConfig'));
+      assert.ok(configContent.includes('drauu'));
+      assert.ok(configContent.includes('brush'));
+      assert.ok(configContent.includes('size: 4'));
+      assert.ok(configContent.includes('color: \'#ff0000\''));
+    });
+
+    test('copyModuleConfigs creates iconify.config.ts for Iconify module', async () => {
+      const lectureName = 'iconify-config-test';
+      await lectureManager.createLectureDir(lectureName);
+      
+      const selectedModules = ['iconify'];
+      await lectureManager.copyModuleConfigs(lectureName, selectedModules);
+      
+      // Iconify should create iconify.config.ts with documentation
+      const configPath = vscode.Uri.joinPath(lectureManager.getLectureDir(lectureName), 'iconify.config.ts');
+      const configExists = await fs.access(configPath.fsPath).then(() => true).catch(() => false);
+      assert.strictEqual(configExists, true);
+      
+      const configContent = await fs.readFile(configPath.fsPath, 'utf-8');
+      assert.ok(configContent.includes('defineConfig'));
+      assert.ok(configContent.includes('Iconify'));
+      // Check for correct Iconify syntax (using Icon component)
+      assert.ok(configContent.includes('Icon'));
+      assert.ok(configContent.includes('mdi:home'));
+    });
+
+    test('copyModuleConfigs creates katex.config.ts for KaTeX module', async () => {
+      const lectureName = 'katex-config-test';
+      await lectureManager.createLectureDir(lectureName);
+      
+      const selectedModules = ['katex'];
+      await lectureManager.copyModuleConfigs(lectureName, selectedModules);
+      
+      // KaTeX should create katex.config.ts with math configuration
+      const configPath = vscode.Uri.joinPath(lectureManager.getLectureDir(lectureName), 'katex.config.ts');
+      const configExists = await fs.access(configPath.fsPath).then(() => true).catch(() => false);
+      assert.strictEqual(configExists, true);
+      
+      const configContent = await fs.readFile(configPath.fsPath, 'utf-8');
+      assert.ok(configContent.includes('defineConfig'));
+      assert.ok(configContent.includes('katex'));
+      assert.ok(configContent.includes('macros'));
+      assert.ok(configContent.includes('\\RR'));
+    });
+
+    test('copyModuleConfigs creates mermaid.config.ts for Mermaid module', async () => {
+      const lectureName = 'mermaid-config-test';
+      await lectureManager.createLectureDir(lectureName);
+      
+      const selectedModules = ['mermaid'];
+      await lectureManager.copyModuleConfigs(lectureName, selectedModules);
+      
+      // Mermaid should create mermaid.config.ts with diagram configuration
+      const configPath = vscode.Uri.joinPath(lectureManager.getLectureDir(lectureName), 'mermaid.config.ts');
+      const configExists = await fs.access(configPath.fsPath).then(() => true).catch(() => false);
+      assert.strictEqual(configExists, true);
+      
+      const configContent = await fs.readFile(configPath.fsPath, 'utf-8');
+      assert.ok(configContent.includes('defineConfig'));
+      assert.ok(configContent.includes('mermaid'));
+      assert.ok(configContent.includes('theme'));
+      assert.ok(configContent.includes('securityLevel'));
+    });
+  });
 });

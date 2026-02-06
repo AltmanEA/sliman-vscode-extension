@@ -48,7 +48,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
     );
 
     treeItem.id = id;
-    treeItem.iconPath = element.icon ? this.getIcon(element.icon) : undefined;
+    treeItem.iconPath = element.icon ?? undefined;
     treeItem.command = element.command ?? undefined;
     treeItem.contextValue = element.contextValue;
 
@@ -128,7 +128,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
         id: lectureId,
         label: `${lectureName}`,
         type: 'lecture',
-        icon: '$(file-code)',
+        icon: new vscode.ThemeIcon('file'),
         collapsible: vscode.TreeItemCollapsibleState.Collapsed,
         contextValue: 'lecture',
       });
@@ -184,7 +184,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
       id: 'create-course',
       label: 'Create Course',
       type: 'action',
-      icon: '$(add)',
+      icon: new vscode.ThemeIcon('add'),
       command,
       contextValue: 'create-course',
     };
@@ -201,7 +201,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
       id: 'course-root',
       label: courseName,
       type: 'root',
-      icon: '$(remote)',
+      icon: new vscode.ThemeIcon('folder'),
       collapsible: vscode.TreeItemCollapsibleState.Expanded,
       contextValue: 'course-root',
     };
@@ -216,7 +216,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
       id: 'lectures-folder',
       label: 'Lectures',
       type: 'folder',
-      icon: '$(files)',
+      icon: new vscode.ThemeIcon('files'),
       collapsible: vscode.TreeItemCollapsibleState.Collapsed,
       contextValue: 'lectures-folder',
     };
@@ -237,7 +237,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
         id: `lecture-${lecture.name}`,
         label: `${lecture.title} (${lecture.name})`,
         type: 'lecture',
-        icon: '$(file-code)',
+        icon: new vscode.ThemeIcon('file'),
         collapsible: vscode.TreeItemCollapsibleState.Collapsed,
         contextValue: 'lecture',
       };
@@ -283,7 +283,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
         id: `lecture-command-view-${lectureName}`,
         label: 'View',
         type: 'action',
-        icon: '$(eye)',
+        icon: new vscode.ThemeIcon('eye'),
         command: viewCommand,
         contextValue: 'lecture-view-command',
       },
@@ -291,7 +291,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
         id: `lecture-command-edit-${lectureName}`,
         label: 'Edit',
         type: 'action',
-        icon: '$(edit)',
+        icon: new vscode.ThemeIcon('edit'),
         command: editCommand,
         contextValue: 'lecture-edit-command',
       },
@@ -299,7 +299,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
         id: `lecture-command-build-${lectureName}`,
         label: 'Build',
         type: 'action',
-        icon: '$(tools)',
+        icon: new vscode.ThemeIcon('tools'),
         command: buildCommand,
         contextValue: 'lecture-build-command',
       },
@@ -307,7 +307,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
         id: `lecture-command-delete-${lectureName}`,
         label: 'Delete',
         type: 'action',
-        icon: '$(trash)',
+        icon: new vscode.ThemeIcon('trash'),
         command: deleteCommand,
         contextValue: 'lecture-delete-command',
       },
@@ -320,8 +320,8 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
    */
   private buildRootActionItems(): CourseTreeItem[] {
     const actions: Array<{ id: string; label: string; icon: string; commandId: string }> = [
-      { id: 'root-add-lecture', label: 'Add Lecture', icon: '$(add)', commandId: 'sliman.addLecture' },
-      { id: 'root-view-course', label: 'View Course', icon: '$(globe)', commandId: 'sliman.viewCourse' },
+      { id: 'root-add-lecture', label: 'Add Lecture', icon: 'new-file', commandId: 'sliman.addLecture' },
+      { id: 'root-view-course', label: 'View Course', icon: 'preview', commandId: 'sliman.viewCourse' },
     ];
 
     return actions.map((action): CourseTreeItem => {
@@ -334,7 +334,7 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
         id: action.id,
         label: action.label,
         type: 'action',
-        icon: action.icon,
+        icon: new vscode.ThemeIcon(action.icon),
         command,
         contextValue: 'root-action',
       };
@@ -342,15 +342,6 @@ export class CourseExplorerDataProvider implements vscode.TreeDataProvider<Cours
   }
 
   /**
-   * Converts a codicon name to an icon path
-   * @param codicon - Codicon name (e.g., '$(file-code)')
-   * @returns ThemeIcon for the codicon
+   * Method removed - no longer needed since iconPath is set directly from CourseTreeItem.icon
    */
-  private getIcon(codicon: string): vscode.ThemeIcon | undefined {
-    if (codicon.startsWith('$(') && codicon.endsWith(')')) {
-      const iconId = codicon.slice(2, -1);
-      return new vscode.ThemeIcon(iconId);
-    }
-    return undefined;
-  }
 }

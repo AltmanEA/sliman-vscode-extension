@@ -5,6 +5,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { managersContainer } from './managers/ManagersContainer';
 import { generateLectureFolderName, isValidFolderName, validateCourseName } from './utils/translit';
+import { AVAILABLE_MODULES, DEFAULT_MODULES } from './constants';
 
 let outputChannel: vscode.OutputChannel | null = null;
 let extensionPath: string = '';
@@ -235,6 +236,113 @@ export async function scanCourse(): Promise<void> {
 }
 
 /**
+ * Test command to verify icon display
+ * This command shows a simple tree view with icons for testing
+ */
+export async function testIcons(): Promise<void> {
+  if (!outputChannel) {
+    throw new Error('Commands not initialized');
+  }
+
+  const channel = outputChannel;
+  channel.appendLine('[TEST] Icon test command executed');
+  channel.show();
+
+  // Create a simple test tree with various icon types
+  const testItems: vscode.QuickPickItem[] = [
+    {
+      label: 'file-code icon',
+      description: 'Testing file-code icon',
+      iconPath: new vscode.ThemeIcon('file-code')
+    },
+    {
+      label: 'add icon', 
+      description: 'Testing add icon',
+      iconPath: new vscode.ThemeIcon('add')
+    },
+    {
+      label: 'remote icon',
+      description: 'Testing remote icon', 
+      iconPath: new vscode.ThemeIcon('remote')
+    },
+    {
+      label: 'files icon',
+      description: 'Testing files icon',
+      iconPath: new vscode.ThemeIcon('files')
+    },
+    {
+      label: 'eye icon',
+      description: 'Testing eye icon',
+      iconPath: new vscode.ThemeIcon('eye')
+    },
+    {
+      label: 'edit icon',
+      description: 'Testing edit icon',
+      iconPath: new vscode.ThemeIcon('edit')
+    },
+    {
+      label: 'tools icon',
+      description: 'Testing tools icon', 
+      iconPath: new vscode.ThemeIcon('tools')
+    },
+    {
+      label: 'trash icon',
+      description: 'Testing trash icon',
+      iconPath: new vscode.ThemeIcon('trash')
+    }
+  ];
+
+  const selected = await vscode.window.showQuickPick(testItems, {
+    placeHolder: 'Select an item to test icon display',
+    canPickMany: false
+  });
+
+  if (selected) {
+    channel.appendLine(`[TEST] Selected: ${selected.label} - ${selected.description}`);
+    void vscode.window.showInformationMessage(`Icon test: ${selected.label} selected successfully!`);
+  } else {
+    channel.appendLine('[TEST] Icon test cancelled');
+  }
+}
+
+/**
+ * Shows module selection dialog for lecture creation
+ * @param outputChannel - Output channel for logging
+ * @returns Promise resolving to array of selected module IDs
+ */
+export async function selectModules(outputChannel: vscode.OutputChannel): Promise<string[]> {
+  outputChannel.appendLine('[SELECT] Module selection dialog opened');
+
+  // Create QuickPick items for each module
+  const moduleItems: vscode.QuickPickItem[] = AVAILABLE_MODULES.map(module => ({
+    label: module.name,
+    description: module.description,
+    detail: `Dependencies: ${module.dependencies.join(', ')}`,
+    picked: DEFAULT_MODULES.includes(module.id)
+  }));
+
+  // Show QuickPick for module selection (multi-select)
+  const selection = await vscode.window.showQuickPick(moduleItems, {
+    placeHolder: 'Select modules to include in the lecture (none required)',
+    canPickMany: true,
+    ignoreFocusOut: false
+  });
+
+  if (!selection) {
+    outputChannel.appendLine('[SELECT] Module selection cancelled');
+    return [];
+  }
+
+  const selectedModuleIds = selection.map(item => {
+    const module = AVAILABLE_MODULES.find(m => m.name === item.label);
+    return module?.id || '';
+  }).filter(id => id !== '');
+
+  outputChannel.appendLine(`[SELECT] Selected modules: ${selectedModuleIds.join(', ') || 'none'}`);
+  return selectedModuleIds;
+}
+
+/**
  * Command: sliman.addLecture
  * Adds a new lecture with sli.dev structure (slides/, slides.md, package.json)
  */
@@ -318,9 +426,12 @@ export async function addLecture(): Promise<void> {
 
   channel.appendLine(`[ADD] Folder name: ${folderName}`);
 
-  // Step 5: Confirm creation
+  // Step 5: Select modules for the lecture
+  const selectedModules = await selectModules(channel);
+  
+  // Step 6: Confirm creation
   const confirm = await vscode.window.showInformationMessage(
-    `Create lecture "${title}" (${folderName})?`,
+    `Create lecture "${title}" (${folderName}) with modules: ${selectedModules.join(', ') || 'none'}?`,
     { modal: true },
     'Create', 'Cancel'
   );
@@ -330,13 +441,13 @@ export async function addLecture(): Promise<void> {
     return;
   }
 
-  // Step 6: Create lecture
+  // Step 7: Create lecture with selected modules
   try {
-    channel.appendLine('[ADD] Creating lecture...');
-    await lectureManager.createLecture(folderName, title);
-    channel.appendLine(`[ADD] ✓ Lecture "${title}" created successfully!`);
+    channel.appendLine('[ADD] Creating lecture with modules...');
+    await lectureManager.createLectureWithModules(folderName, title, selectedModules);
+    channel.appendLine(`[ADD] ✓ Lecture "${title}" created successfully with modules: ${selectedModules.join(', ') || 'none'}!`);
 
-    // Step 7: Update index.html with new lecture list
+    // Step 8: Update index.html with new lecture list
     const buildManager = managersContainer.buildManager;
     if (buildManager) {
       try {
