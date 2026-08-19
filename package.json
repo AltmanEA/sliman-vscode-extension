@@ -25,6 +25,7 @@
     "onCommand:sliman.editLecture",
     "onCommand:sliman.deleteLecture",
     "onCommand:sliman.viewCourse",
+    "onCommand:sliman.setupPages",
     "onCommand:sliman.testIcons",
     "onCommand:courseExplorer.refresh"
   ],
@@ -75,7 +76,6 @@
         "title": "Add Lecture",
         "category": "sli.dev Course"
       },
-
       {
         "command": "sliman.buildLecture",
         "title": "Build Lecture",
@@ -102,6 +102,11 @@
         "category": "sli.dev Course"
       },
       {
+        "command": "sliman.setupPages",
+        "title": "Setup GitHub Pages",
+        "category": "sli.dev Course"
+      },
+      {
         "command": "sliman.testIcons",
         "title": "Test Icons",
         "category": "sli.dev Course"
@@ -124,8 +129,8 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",
-    "compile": "tsc -p ./",    
-    "watch": "tsc -watch -p ./",    
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
     "lint": "eslint src --fix --config eslint.config.mjs",
     "lint:check": "eslint src --config eslint.config.mjs",
     "test": "pnpm run compile && pnpm run vscode-test",

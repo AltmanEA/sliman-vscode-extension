@@ -47,6 +47,7 @@ export const DEFAULT_ROUTER_MODE = 'history';
 /** VS Code configuration keys */
 export const CONFIG_SECTION = 'sliDevCourse';
 export const CONFIG_COURSE_ROOT = 'courseRoot';
+export const CONFIG_DEPLOY_ROOT = 'deployRoot';
 
 /** Lecture file names */
 export const LECTURE_SLIDES = 'slides.md';

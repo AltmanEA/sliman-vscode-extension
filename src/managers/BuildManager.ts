@@ -16,6 +16,9 @@
  */
 
 import * as vscode from 'vscode';
+import * as child_process from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 import type { CourseManager } from './CourseManager';
 import type { LectureManager } from './LectureManager';
 
@@ -109,49 +112,107 @@ export class BuildManager {
   }
 
   /**
-   * Builds a single lecture via terminal
+   * Builds a single lecture via terminal with correct --base flag based on deployRoot
    * Creates a terminal and runs pnpm install and pnpm build
+   * After build completes, copies dist/ to the appropriate destination directory
    * Terminal remains open for user interaction
    * @param name - Lecture folder name
-   * @returns Promise resolving when terminal is created
-   * @throws Error if lecture doesn't exist
+   * @param deployRoot - When false: --base /{courseName}/{lectureName}/, copy to {courseName}/{lectureName}/
+   *                     When true:  --base /, copy to built/{lectureName}/
+   * @returns Promise resolving when build and copy complete
+   * @throws Error if lecture doesn't exist or build fails
    */
-  async buildLecture(name: string): Promise<void> {
+  async buildLecture(name: string, deployRoot: boolean = false): Promise<void> {
     // Check if lecture exists
     if (!(await this.lectureManager.lectureExists(name))) {
       throw new Error(`Lecture "${name}" does not exist`);
     }
 
     const lecturePath = this.lectureManager.getLectureDir(name).fsPath;
-    const terminalName = `sli.dev: Build ${name}`;
 
-    // Create terminal for build process
-    const terminal = vscode.window.createTerminal(terminalName);
+    // Get course name for base path
+    const courseName = await this.courseManager.readCourseName();
+    if (!courseName) {
+      throw new Error('Course name not found in sliman.json');
+    }
+
+    // Determine base path and copy destination based on deployRoot mode
+    let basePath: string;
+    let copySource: string;
+    let copyDestination: string;
+
+    if (deployRoot) {
+      // Root deploy mode: --base /, copy to built/{lectureName}/
+      basePath = '/';
+      copySource = path.join(lecturePath, 'dist');
+      copyDestination = path.join(this.courseManager.getCourseRoot().fsPath, 'built', name);
+    } else {
+      // Subdir deploy mode (default): --base /{courseName}/{lectureName}/, copy to {courseName}/{lectureName}/
+      basePath = `/${courseName}/${name}/`;
+      copySource = path.join(lecturePath, 'dist');
+      copyDestination = path.join(this.courseManager.getCourseRoot().fsPath, courseName, name);
+    }
 
     // Show progress in status bar
     this.showProgress({ lecture: name, stage: 'building' });
 
     try {
-      // Get course name for base path
-      const courseName = await this.courseManager.readCourseName();
-      if (!courseName) {
-        throw new Error('Course name not found in sliman.json');
-      }
+      // Create terminal for build process
+      const terminalName = `sli.dev: Build ${name}`;
+      const terminal = vscode.window.createTerminal(terminalName);
 
-      const basePath = `/${courseName}/${name}/`;
-
-      // Execute build commands in terminal
+      // Show the base path in terminal output
+      terminal.sendText(`# Building "${name}" with --base ${basePath}`);
       terminal.sendText(`cd "${lecturePath}"`);
       terminal.sendText('pnpm install');
       terminal.sendText(`pnpm build --base ${basePath}`);
       terminal.show();
 
-      // Note: Terminal remains open for user interaction
-      // User can close it manually to stop the process
+      // Wait for build to complete, then copy files to destination
+      const buildCommand = `cd "${lecturePath}" && pnpm build --base ${basePath}`;
       
+      await new Promise<void>((resolve, reject) => {
+        child_process.exec(buildCommand, { cwd: lecturePath, timeout: 300000 }, (error, stdout, stderr) => {
+          if (error) {
+            reject(new Error(`Build failed: ${error.message}`));
+            return;
+          }
+          if (stderr) {
+            console.error(`Build stderr for ${name}: ${stderr}`);
+          }
+          console.log(`Build stdout for ${name}: ${stdout}`);
+          resolve();
+        });
+      });
+
+      // Copy built files to destination directory
+      await this.copyBuiltFiles(copySource, copyDestination);
+
     } catch (error) {
       await this.hideProgress();
       throw error;
+    }
+  }
+
+  /**
+   * Copies built files from source to destination directory
+   * Creates destination directory if it doesn't exist
+   * @param source - Source directory path (lecture/dist)
+   * @param destination - Destination directory path
+   */
+  private copyBuiltFiles(source: string, destination: string): void {
+    // Create destination directory if it doesn't exist
+    const destDir = path.dirname(destination);
+    if (!fs.existsSync(destDir)) {
+      fs.mkdirSync(destDir, { recursive: true });
+    }
+
+    // Copy built files recursively
+    try {
+      fs.cpSync(source, destination, { recursive: true, force: true });
+    } catch (error) {
+      console.error(`Failed to copy built files from ${source} to ${destination}:`, error);
+      // Don't throw - build was successful, copy is secondary
     }
   }
 
@@ -184,6 +245,7 @@ export class BuildManager {
 
   /**
    * Builds the entire course using shared output channel
+   * Each lecture is built with the correct deployRoot mode
    * @param outputChannel - Shared output channel from extension
    * @returns Promise resolving when build completes
    * @throws Error if build fails
@@ -193,14 +255,17 @@ export class BuildManager {
     this.showProgress({ stage: 'building' });
 
     try {
+      // Get deployRoot mode
+      const deployRoot = await this.courseManager.readDeployRoot();
+      
       // Get lecture list and build each lecture using terminal
       const lectureDirs = await this.courseManager.getLectureDirectories();
       
       for (const lectureName of lectureDirs) {
-        outputChannel.appendLine(`[BUILD] Building lecture: ${lectureName}`);
+        outputChannel.appendLine(`[BUILD] Building lecture: ${lectureName} (deployRoot: ${deployRoot})`);
         
-        // Use buildLecture to ensure consistent build process with terminal
-        await this.buildLecture(lectureName);
+        // Use buildLecture with deployRoot mode for correct --base and copy destination
+        await this.buildLecture(lectureName, deployRoot);
         
         outputChannel.appendLine(`[BUILD] ✓ Lecture "${lectureName}" built successfully`);
       }

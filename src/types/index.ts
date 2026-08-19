@@ -23,6 +23,14 @@ export interface LectureInfo {
  * Contains course_name only
  */
 export interface SlimanConfig {
+  /**
+   * Dual deploy mode flag.
+   * - `true` — root deploy mode: uses `--base /` (course deployed at domain root)
+   * - `false` or absent — subdir deploy mode: uses `--base /{courseName}/` (course deployed under subdirectory)
+   *
+   * Defaults to `false` for backward compatibility.
+   */
+  deployRoot?: boolean;
   course_name: string;
 }
 

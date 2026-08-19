@@ -135,6 +135,20 @@ suite('BuildManager Tests', () => {
       );
     });
 
+    test('buildLecture with deployRoot: false throws error for nonexistent lecture', async () => {
+      await assert.rejects(
+        () => buildManager.buildLecture('nonexistent', false),
+        /does not exist/
+      );
+    });
+
+    test('buildLecture with deployRoot: true throws error for nonexistent lecture', async () => {
+      await assert.rejects(
+        () => buildManager.buildLecture('nonexistent', true),
+        /does not exist/
+      );
+    });
+
     test('runDevServer throws error for nonexistent lecture', async () => {
       await assert.rejects(
         () => buildManager.runDevServer('nonexistent'),
@@ -241,6 +255,24 @@ suite('BuildManager Tests', () => {
       buildManager.dispose();
       
       assert.ok(true);
+    });
+
+    test('buildLecture with deployRoot modes accepts both parameters', async () => {
+      // Verify that buildLecture accepts the deployRoot parameter
+      // Both modes should throw "does not exist" for nonexistent lecture
+      // (no real build is performed in this test)
+      
+      // Default mode (deployRoot: false)
+      await assert.rejects(
+        () => buildManager.buildLecture('nonexistent', false),
+        /does not exist/
+      );
+      
+      // Root deploy mode (deployRoot: true)
+      await assert.rejects(
+        () => buildManager.buildLecture('nonexistent', true),
+        /does not exist/
+      );
     });
   });
 

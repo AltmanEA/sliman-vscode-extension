@@ -73,6 +73,17 @@ export async function createCourse(): Promise<void> {
 
   channel.appendLine(`[CREATE] Course name: ${courseName}`);
 
+  // Step 2.5: Ask about deploy root mode
+  const deployRootChoice = await vscode.window.showInputBox({
+    prompt: 'Deploy root?',
+    placeHolder: 'Y for root deploy (--base /), N for subdir deploy (--base /{courseName}/)',
+    value: 'n',
+    ignoreFocusOut: false
+  });
+
+  const deployRoot = deployRootChoice !== undefined && deployRootChoice.trim().toLowerCase() !== 'n';
+  channel.appendLine(`[CREATE] Deploy root mode: ${deployRoot}`);
+
   let selectedFolder: vscode.WorkspaceFolder;
 
   if (workspaceFolders.length === 1) {
@@ -110,8 +121,8 @@ export async function createCourse(): Promise<void> {
     // Step 4: Create course structure
     channel.appendLine('[CREATE] Creating course structure...');
 
-    // Create sliman.json in course root with course_name
-    const slimanContent = JSON.stringify({ course_name: courseName }, null, 2);
+    // Create sliman.json in course root with course_name and deployRoot
+    const slimanContent = JSON.stringify({ course_name: courseName, deployRoot }, null, 2);
     const slimanPath = path.join(coursePath, 'sliman.json');
     await fs.writeFile(slimanPath, slimanContent);
     channel.appendLine(`[CREATE] ✓ Created file: ${slimanPath}`);
@@ -145,9 +156,10 @@ export async function createCourse(): Promise<void> {
       channel.appendLine(`[CREATE] Warning: Could not copy index.html template: ${templateError}`);
     }
 
-    // Step 5: Create GitHub Actions workflow for Pages deployment
-    channel.appendLine('[CREATE] Setting up GitHub Pages workflow...');
-    try {
+    // Step 5: Create GitHub Actions workflow and .gitignore (only for subdir deploy)
+    if (!deployRoot) {
+      channel.appendLine('[CREATE] Setting up GitHub Pages workflow (subdir deploy)...');
+
       // Create .github/workflows directory
       const workflowsDir = path.join(coursePath, '.github', 'workflows');
       await fs.mkdir(workflowsDir, { recursive: true });
@@ -163,13 +175,9 @@ export async function createCourse(): Promise<void> {
       
       await fs.writeFile(staticYmlPath, staticContent);
       channel.appendLine(`[CREATE] ✓ Created GitHub workflow: ${staticYmlPath}`);
-    } catch (workflowError) {
-      channel.appendLine(`[CREATE] Warning: Could not create GitHub workflow: ${workflowError}`);
-    }
 
-    // Step 6: Create .gitignore file
-    channel.appendLine('[CREATE] Creating .gitignore file...');
-    try {
+      // Create .gitignore file
+      channel.appendLine('[CREATE] Creating .gitignore file...');
       const templateGitignorePath = path.join(extensionPath, 'template', '.gitignore');
       const gitignorePath = path.join(coursePath, '.gitignore');
       let gitignoreContent = await fs.readFile(templateGitignorePath, 'utf-8');
@@ -179,12 +187,13 @@ export async function createCourse(): Promise<void> {
       
       await fs.writeFile(gitignorePath, gitignoreContent);
       channel.appendLine(`[CREATE] ✓ Created .gitignore file: ${gitignorePath}`);
-    } catch (gitignoreError) {
-      channel.appendLine(`[CREATE] Warning: Could not create .gitignore: ${gitignoreError}`);
+    } else {
+      channel.appendLine('[CREATE] Skipping GitHub workflow (root deploy mode)');
     }
 
-    channel.appendLine(`[CREATE] ✓ Course "${courseName}" created successfully!`);
-    void vscode.window.showInformationMessage(`Course "${courseName}" created! GitHub Pages workflow and .gitignore configured.`);
+    const deployMode = deployRoot ? 'root deploy' : 'subdir deploy';
+    channel.appendLine(`[CREATE] ✓ Course "${courseName}" created successfully with ${deployMode}!`);
+    void vscode.window.showInformationMessage(`Course "${courseName}" created with ${deployMode}!`);
 
     // Refresh Course Explorer tree view
     managersContainer.refreshCourseExplorer();
@@ -476,7 +485,7 @@ export async function addLecture(): Promise<void> {
 
 /**
  * Command: sliman.buildLecture
- * Compiles lecture to static HTML
+ * Compiles lecture to static HTML with correct --base based on deployRoot
  * @param name - Lecture folder name (passed from Tree View)
  */
 export async function buildLecture(name: string): Promise<void> {
@@ -485,7 +494,7 @@ export async function buildLecture(name: string): Promise<void> {
   }
 
   const channel = outputChannel;
-  channel.appendLine(`Command: buildLecture: ${name}`);
+  channel.appendLine(`[BUILD] Command: buildLecture: ${name}`);
   channel.show();
 
   const courseManager = managersContainer.courseManager;
@@ -493,7 +502,7 @@ export async function buildLecture(name: string): Promise<void> {
   const buildManager = managersContainer.buildManager;
 
   if (!courseManager || !lectureManager || !buildManager) {
-    channel.appendLine('Managers not initialized');
+    channel.appendLine('[BUILD] ✗ Managers not initialized');
     void vscode.window.showErrorMessage('Managers not initialized');
     return;
   }
@@ -501,74 +510,35 @@ export async function buildLecture(name: string): Promise<void> {
   // Step 1: Check if we're in a course root
   const isRoot = await courseManager.isCourseRoot();
   if (!isRoot) {
-    channel.appendLine('Not in a course root directory');
+    channel.appendLine('[BUILD] ✗ Not in a course root directory');
     void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
     return;
   }
 
-  const courseRoot = courseManager.getCourseRoot();
-  channel.appendLine(`Course root: ${courseRoot.fsPath}`);
-
   // Step 2: Check if lecture exists
-  channel.appendLine(`Checking lecture: ${name}`);
+  channel.appendLine(`[BUILD] Checking lecture: ${name}`);
   const lectureExists = await lectureManager.lectureExists(name);
   if (!lectureExists) {
-    channel.appendLine(`Lecture "${name}" does not exist`);
+    channel.appendLine(`[BUILD] ✗ Lecture "${name}" does not exist`);
     void vscode.window.showErrorMessage(`Lecture "${name}" does not exist`);
     return;
   }
-  channel.appendLine(`Lecture "${name}" exists`);
+  channel.appendLine(`[BUILD] ✓ Lecture "${name}" exists`);
 
-  // Step 3: Build the lecture in terminal for real-time output + copying
-  const lecturePath = lectureManager.getLectureDir(name).fsPath;
-  const terminalName = `sli.dev Build: ${name}`;
+  // Step 3: Get deployRoot mode and delegate to BuildManager
+  const deployRoot = await courseManager.readDeployRoot();
+  channel.appendLine(`[BUILD] Deploy root mode: ${deployRoot}`);
 
-  // Get course name for base path
-  const courseName = await courseManager.readCourseName();
-  if (!courseName) {
-    channel.appendLine('Course name not found in sliman.json');
-    void vscode.window.showErrorMessage('Course name not found in sliman.json');
-    return;
+  try {
+    channel.appendLine('[BUILD] Starting build via BuildManager...');
+    await buildManager.buildLecture(name, deployRoot);
+    channel.appendLine(`[BUILD] ✓ Lecture "${name}" built successfully`);
+    void vscode.window.showInformationMessage(`Lecture "${name}" built successfully!`);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    channel.appendLine(`[BUILD] ✗ Build failed: ${errorMessage}`);
+    void vscode.window.showErrorMessage(`Build failed: ${errorMessage}`);
   }
-
-  // Build base path: /{courseName}/{lectureName}/
-  const basePath = `/${courseName}/${name}/`;
-  channel.appendLine(`Using base path: ${basePath}`);
-
-  // Create terminal and show the command that will be executed
-  const terminal = vscode.window.createTerminal(terminalName);
-  channel.appendLine(`Creating terminal: ${terminalName}`);
-  
-  // Show terminal and execute commands
-  terminal.show();
-
-  // Step 4: Execute build commands in terminal
-  channel.appendLine('Executing build commands in terminal...');
-  
-  // Change to lecture directory and build
-  terminal.sendText(`cd "${lecturePath}"`);
-  terminal.sendText(`pnpm install`);
-  terminal.sendText(`pnpm build --base ${basePath}`);
-  
-  // Add a final message to output channel
-  channel.appendLine('Build started in terminal. All output will be visible in the terminal window.');
-  channel.appendLine('Terminal commands:');
-  channel.appendLine(`  cd "${lecturePath}"`);
-  channel.appendLine('  pnpm install');
-  channel.appendLine(`  pnpm build --base ${basePath}`);
-  
-  // Step 5: Add copy command to terminal (will execute after build completes)
-  terminal.sendText('');
-  terminal.sendText('# Copying built files to course directory...');
-  
-  // Use PowerShell-compatible commands to copy the files
-  const courseRootPath = courseRoot.fsPath;
-  terminal.sendText(`if (!(Test-Path "${courseRootPath}\\${courseName}\\${name}")) { mkdir "${courseRootPath}\\${courseName}\\${name}" -Force }`);
-  terminal.sendText(`Copy-Item -Path "${lecturePath}\\dist\\*" -Destination "${courseRootPath}\\${courseName}\\${name}\\" -Recurse -Force -ErrorAction SilentlyContinue`);
-  terminal.sendText('Write-Host "Copy completed!" -ForegroundColor Green');
-  
-  // Show info message to user
-  void vscode.window.showInformationMessage(`Build started for lecture "${name}". All output (including copying) will be visible in the terminal.`);
 }
 
 
@@ -820,9 +790,89 @@ export async function buildCourse(): Promise<void> {
 
 
 /**
- * Command: sliman.viewCourse
+ * Command: sliman.setupPages
+ * Sets up GitHub Pages deployment workflow
+ */
+export async function setupPages(): Promise<void> {
+  if (!outputChannel) {
+    throw new Error('Commands not initialized');
+  }
+
+  const channel = outputChannel;
+  channel.appendLine('[PAGES] Command: setupPages');
+  channel.show();
+
+  const courseManager = managersContainer.courseManager;
+
+  if (!courseManager) {
+    channel.appendLine('[PAGES] ✗ CourseManager not initialized');
+    void vscode.window.showErrorMessage('CourseManager not initialized');
+    return;
+  }
+
+  // Step 1: Check if we're in a course root
+  const isRoot = await courseManager.isCourseRoot();
+  if (!isRoot) {
+    channel.appendLine('[PAGES] ✗ Not in a course root directory');
+    void vscode.window.showErrorMessage('Not a valid course root. Please open a directory with sliman.json');
+    return;
+  }
+
+  const courseRoot = courseManager.getCourseRoot();
+  channel.appendLine(`[PAGES] Course root: ${courseRoot.fsPath}`);
+
+  // Step 2: Read deployRoot from sliman.json
+  const deployRoot = await courseManager.readDeployRoot();
+  channel.appendLine(`[PAGES] Deploy root mode: ${deployRoot}`);
+
+  // Step 3: When deployRoot is true, show informational message
+  if (deployRoot) {
+    channel.appendLine('[PAGES] Root deploy mode is enabled, skipping GitHub Pages setup');
+    void vscode.window.showInformationMessage(
+      'GitHub Pages is not supported for root deploy mode. Configure your server to serve the built/ directory directly.'
+    );
+    return;
+  }
+
+  // Step 4: When deployRoot is false (or absent), create the workflow
+  channel.appendLine('[PAGES] Setting up GitHub Pages workflow (subdir deploy mode)...');
+
+  const templatePath = path.join(extensionPath, 'template', 'static.yml');
+  const workflowsDir = path.join(courseRoot.fsPath, '.github', 'workflows');
+  const workflowPath = path.join(workflowsDir, 'static.yml');
+
+  try {
+    // Create .github/workflows directory if it doesn't exist
+    await fs.mkdir(workflowsDir, { recursive: true });
+    channel.appendLine('[PAGES] ✓ Created .github/workflows directory');
+
+    // Read template
+    let workflowContent = await fs.readFile(templatePath, 'utf-8');
+    channel.appendLine('[PAGES] ✓ Read static.yml template');
+
+    // Write workflow file
+    await fs.writeFile(workflowPath, workflowContent);
+    channel.appendLine(`[PAGES] ✓ Created GitHub workflow: ${workflowPath}`);
+
+    channel.appendLine('[PAGES] ✓ GitHub Pages setup completed successfully!');
+    void vscode.window.showInformationMessage('GitHub Pages workflow created successfully!');
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    channel.appendLine(`[PAGES] ✗ Failed to setup GitHub Pages: ${errorMessage}`);
+    void vscode.window.showErrorMessage(`Failed to setup GitHub Pages: ${errorMessage}`);
+    return;
+  }
+
+  // Step 5: Refresh Course Explorer tree view
+  managersContainer.refreshCourseExplorer();
+}
+
+/**
+  * Command: sliman.viewCourse
  * Starts HTTP server in project root and opens built course in browser
- * Launches npx http-server . -c-1 (no caching) and opens browser to /course_name/index.html
+ * Respects deployRoot setting from sliman.json:
+ *   - deployRoot: false → opens {courseName}/index.html
+ *   - deployRoot: true  → opens built/index.html
  */
 export async function viewCourse(): Promise<void> {
   if (!outputChannel) {
@@ -861,9 +911,25 @@ export async function viewCourse(): Promise<void> {
   }
   channel.appendLine(`[VIEW] Course name: ${courseName}`);
 
-  // Step 3: Check if built course exists
-  const builtIndexPath = vscode.Uri.joinPath(courseRoot, courseName, 'index.html');
-  channel.appendLine(`[VIEW] Checking for built course: ${builtIndexPath.fsPath}`);
+  // Step 3: Read deployRoot setting and determine built path
+  const deployRoot = await courseManager.readDeployRoot();
+  const modeLabel = deployRoot ? 'root deploy (built/)' : 'subdir deploy ({courseName}/)';
+  channel.appendLine(`[VIEW] Deploy mode: ${modeLabel} (deployRoot: ${deployRoot})`);
+
+  let builtIndexPath: vscode.Uri;
+  let browserUrl: string;
+
+  if (deployRoot) {
+    // Root deploy mode: built files are in built/
+    builtIndexPath = vscode.Uri.joinPath(courseRoot, 'built', 'index.html');
+    browserUrl = `http://localhost:8080/index.html`;
+    channel.appendLine(`[VIEW] Checking for built course: ${builtIndexPath.fsPath}`);
+  } else {
+    // Subdir deploy mode: built files are in {courseName}/
+    builtIndexPath = vscode.Uri.joinPath(courseRoot, courseName, 'index.html');
+    browserUrl = `http://localhost:8080/${courseName}/index.html`;
+    channel.appendLine(`[VIEW] Checking for built course: ${builtIndexPath.fsPath}`);
+  }
 
   try {
     await vscode.workspace.fs.stat(builtIndexPath);
@@ -882,7 +948,6 @@ export async function viewCourse(): Promise<void> {
   terminal.show();
 
   // Step 5: Open browser to course index
-  const browserUrl = `http://localhost:8080/${courseName}/index.html`;
   channel.appendLine(`[VIEW] Opening browser: ${browserUrl}`);
   void vscode.env.openExternal(vscode.Uri.parse(browserUrl));
   

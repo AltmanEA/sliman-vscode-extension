@@ -35,3 +35,7 @@ Thumbs.db
 .vscode-test
 
 test-workspace
+
+.agents
+
+skill-lock.json

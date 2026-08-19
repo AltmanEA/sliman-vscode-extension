@@ -209,4 +209,106 @@ suite('CourseManager Tests', () => {
       assert.strictEqual(result.length, 0);
     });
   });
+
+  // DeployRoot Tests
+  suite('DeployRoot Tests', () => {
+    test('readDeployRoot returns false when deployRoot is not set', async () => {
+      await createMinimalCourse(tempDir, 'Test Course');
+
+      // Overwrite sliman.json without deployRoot (simulating old config)
+      const slimanPath = path.join(tempDir, SLIMAN_FILENAME);
+      await fs.writeFile(slimanPath, JSON.stringify({ course_name: 'Test Course' }, null, 2));
+
+      const result = await courseManager.readDeployRoot();
+      assert.strictEqual(result, false);
+    });
+
+    test('readDeployRoot returns true when deployRoot is true', async () => {
+      await createMinimalCourse(tempDir, 'Test Course');
+
+      const slimanPath = path.join(tempDir, SLIMAN_FILENAME);
+      await fs.writeFile(slimanPath, JSON.stringify({ course_name: 'Test Course', deployRoot: true }, null, 2));
+
+      const result = await courseManager.readDeployRoot();
+      assert.strictEqual(result, true);
+    });
+
+    test('readDeployRoot returns false when deployRoot is false', async () => {
+      await createMinimalCourse(tempDir, 'Test Course');
+
+      const slimanPath = path.join(tempDir, SLIMAN_FILENAME);
+      await fs.writeFile(slimanPath, JSON.stringify({ course_name: 'Test Course', deployRoot: false }, null, 2));
+
+      const result = await courseManager.readDeployRoot();
+      assert.strictEqual(result, false);
+    });
+
+    test('isDeployRoot returns false when deployRoot is not set', async () => {
+      await createMinimalCourse(tempDir, 'Test Course');
+
+      const slimanPath = path.join(tempDir, SLIMAN_FILENAME);
+      await fs.writeFile(slimanPath, JSON.stringify({ course_name: 'Test Course' }, null, 2));
+
+      const result = await courseManager.isDeployRoot();
+      assert.strictEqual(result, false);
+    });
+
+    test('isDeployRoot returns true when deployRoot is true', async () => {
+      await createMinimalCourse(tempDir, 'Test Course');
+
+      const slimanPath = path.join(tempDir, SLIMAN_FILENAME);
+      await fs.writeFile(slimanPath, JSON.stringify({ course_name: 'Test Course', deployRoot: true }, null, 2));
+
+      const result = await courseManager.isDeployRoot();
+      assert.strictEqual(result, true);
+    });
+
+    test('readSlimanConfig migrates missing deployRoot to false', async () => {
+      await createMinimalCourse(tempDir, 'Test Course');
+
+      // Overwrite sliman.json without deployRoot
+      const slimanPath = path.join(tempDir, SLIMAN_FILENAME);
+      await fs.writeFile(slimanPath, JSON.stringify({ course_name: 'Test Course' }, null, 2));
+
+      // Read the config — should trigger migration
+      const result = await courseManager.readSlimanConfig();
+      assert.notStrictEqual(result, null);
+      assert.strictEqual(result?.course_name, 'Test Course');
+      assert.strictEqual(result?.deployRoot, false);
+
+      // Verify the file was updated on disk
+      const updatedContent = JSON.parse(await fs.readFile(slimanPath, 'utf-8'));
+      assert.strictEqual(updatedContent.deployRoot, false);
+    });
+
+    test('readSlimanConfig preserves existing deployRoot value', async () => {
+      await createMinimalCourse(tempDir, 'Test Course');
+
+      const slimanPath = path.join(tempDir, SLIMAN_FILENAME);
+      await fs.writeFile(slimanPath, JSON.stringify({ course_name: 'Test Course', deployRoot: true }, null, 2));
+
+      const result = await courseManager.readSlimanConfig();
+      assert.notStrictEqual(result, null);
+      assert.strictEqual(result?.deployRoot, true);
+
+      // File should not have been modified
+      const updatedContent = JSON.parse(await fs.readFile(slimanPath, 'utf-8'));
+      assert.strictEqual(updatedContent.deployRoot, true);
+    });
+
+    test('writeSlimanConfig always includes deployRoot field', async () => {
+      // Write config without deployRoot
+      await courseManager.writeSlimanConfig({ course_name: 'New Course' });
+
+      const result = await courseManager.readSlimanConfig();
+      assert.strictEqual(result?.course_name, 'New Course');
+      assert.strictEqual(result?.deployRoot, false);
+
+      // Write config with deployRoot: true
+      await courseManager.writeSlimanConfig({ course_name: 'New Course', deployRoot: true });
+
+      const result2 = await courseManager.readSlimanConfig();
+      assert.strictEqual(result2?.deployRoot, true);
+    });
+  });
 });

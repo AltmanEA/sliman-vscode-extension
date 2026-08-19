@@ -11,6 +11,7 @@ import {
   SLIDES_DIR,
   BUILT_DIR,
   TEMPLATE_SLIDES,
+  CONFIG_DEPLOY_ROOT,
 } from '../constants';
 import type { SlimanConfig, SlidesConfig, LectureInfo, CourseData } from '../types';
 
@@ -117,7 +118,15 @@ export class CourseManager {
         return null;
       }
 
-      return parsed as SlimanConfig;
+      // Backward compatibility migration: auto-add deployRoot if missing
+      const config = parsed as SlimanConfig;
+      if (config.deployRoot === undefined || config.deployRoot === null) {
+        config.deployRoot = false;
+        // Write back the updated config for migration
+        await this.writeSlimanConfig(config);
+      }
+
+      return config;
     } catch (error) {
       console.error(`Failed to read ${SLIMAN_FILENAME}:`, error);
       return null;
@@ -130,9 +139,15 @@ export class CourseManager {
    * @returns Promise that resolves when complete
    */
   async writeSlimanConfig(config: SlimanConfig): Promise<void> {
+    // Ensure deployRoot is always set for consistency
+    const configToWrite: SlimanConfig = {
+      ...config,
+      [CONFIG_DEPLOY_ROOT]: config.deployRoot ?? false,
+    };
+
     const slimanJsonUri = vscode.Uri.joinPath(this.workspaceUri, SLIMAN_FILENAME);
     try {
-      const content = JSON.stringify(config, null, 2);
+      const content = JSON.stringify(configToWrite, null, 2);
       await vscode.workspace.fs.writeFile(slimanJsonUri, new TextEncoder().encode(content));
     } catch (error) {
       console.error(`Failed to write ${SLIMAN_FILENAME}:`, error);
@@ -157,6 +172,25 @@ export class CourseManager {
   async writeCourseName(name: string): Promise<void> {
     const config: SlimanConfig = { course_name: name };
     await this.writeSlimanConfig(config);
+  }
+
+  /**
+   * Reads the deployRoot setting from sliman.json
+   * @returns Promise that resolves to true if deployRoot is true, otherwise false
+   */
+  async readDeployRoot(): Promise<boolean> {
+    const config = await this.readSlimanConfig();
+    return config?.deployRoot === true;
+  }
+
+  /**
+   * Checks if root deploy mode is enabled.
+   * Root deploy mode means the course is deployed at domain root (--base /)
+   * instead of a subdirectory (--base /{courseName}/).
+   * @returns Promise that resolves to true when deployRoot is enabled
+   */
+  async isDeployRoot(): Promise<boolean> {
+    return this.readDeployRoot();
   }
 
   // ============================================
