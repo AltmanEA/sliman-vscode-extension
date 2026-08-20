@@ -137,19 +137,22 @@ export async function createCourse(): Promise<void> {
     await fs.mkdir(courseDir, { recursive: true });
     channel.appendLine(`[CREATE] ✓ Created directory: ${courseDir}`);
 
-    // Create {courseName}/slides.json with slides array only
+    // Create slides.json and index.html in appropriate directory
+    // - deployRoot: false → {courseName}/
+    // - deployRoot: true  → built/
+    const outputDir = deployRoot ? path.join(coursePath, 'built') : courseDir;
     const slidesContent = JSON.stringify({ slides: [] }, null, 2);
-    const slidesJsonPath = path.join(coursePath, courseName, 'slides.json');
+    const slidesJsonPath = path.join(outputDir, 'slides.json');
+    await fs.mkdir(outputDir, { recursive: true });
     await fs.writeFile(slidesJsonPath, slidesContent);
     channel.appendLine(`[CREATE] ✓ Created file: ${slidesJsonPath}`);
 
-    // Copy index.html template to {courseName}/
+    // Copy index.html template to output directory
     const templateIndexPath = path.join(extensionPath, 'template', 'index.html');
-    const indexDestPath = path.join(coursePath, courseName, 'index.html');
+    const indexDestPath = path.join(outputDir, 'index.html');
 
     try {
       let indexContent = await fs.readFile(templateIndexPath, 'utf-8');
-      // Update course name in index.html if needed
       await fs.writeFile(indexDestPath, indexContent);
       channel.appendLine(`[CREATE] ✓ Copied template: ${templateIndexPath} -> ${indexDestPath}`);
     } catch (templateError) {
@@ -921,8 +924,9 @@ export async function viewCourse(): Promise<void> {
 
   if (deployRoot) {
     // Root deploy mode: built files are in built/
+    // Serve from built/ directory so root-relative paths work correctly
     builtIndexPath = vscode.Uri.joinPath(courseRoot, 'built', 'index.html');
-    browserUrl = `http://localhost:8080/index.html`;
+    browserUrl = `http://localhost:8080/`;
     channel.appendLine(`[VIEW] Checking for built course: ${builtIndexPath.fsPath}`);
   } else {
     // Subdir deploy mode: built files are in {courseName}/
@@ -939,12 +943,20 @@ export async function viewCourse(): Promise<void> {
     void vscode.window.showWarningMessage('Built course not found. The course may not be built yet.');
   }
 
-  // Step 4: Create terminal and start HTTP server in project root (no caching)
+  // Step 4: Create terminal and start HTTP server (no caching)
   const terminal = vscode.window.createTerminal('sli.dev Course Viewer');
-  const command = `npx http-server . -p 8080 -c-1`;
-  channel.appendLine(`[VIEW] Starting HTTP server (no caching): ${command}`);
+  let serverCommand: string;
+
+  if (deployRoot) {
+    // Root deploy mode: serve from built/ so root-relative paths work
+    serverCommand = `npx http-server "built" -p 8080 -c-1`;
+  } else {
+    // Subdir deploy mode: serve from project root
+    serverCommand = `npx http-server . -p 8080 -c-1`;
+  }
+  channel.appendLine(`[VIEW] Starting HTTP server (no caching): ${serverCommand}`);
   
-  terminal.sendText(command);
+  terminal.sendText(serverCommand);
   terminal.show();
 
   // Step 5: Open browser to course index

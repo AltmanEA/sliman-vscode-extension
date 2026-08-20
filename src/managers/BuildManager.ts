@@ -142,12 +142,14 @@ export class BuildManager {
     let copyDestination: string;
 
     if (deployRoot) {
-      // Root deploy mode: --base /, copy to built/{lectureName}/
-      basePath = '/';
+      // Root deploy mode: copy to built/{lectureName}/
+      // Use lecture-relative base path so assets resolve to /{lectureName}/assets/...
+      basePath = `/${name}/`;
       copySource = path.join(lecturePath, 'dist');
       copyDestination = path.join(this.courseManager.getCourseRoot().fsPath, 'built', name);
     } else {
-      // Subdir deploy mode (default): --base /{courseName}/{lectureName}/, copy to {courseName}/{lectureName}/
+      // Subdir deploy mode (default): copy to {courseName}/{lectureName}/
+      // Use course-relative base path for assets
       basePath = `/${courseName}/${name}/`;
       copySource = path.join(lecturePath, 'dist');
       copyDestination = path.join(this.courseManager.getCourseRoot().fsPath, courseName, name);
@@ -157,20 +159,10 @@ export class BuildManager {
     this.showProgress({ lecture: name, stage: 'building' });
 
     try {
-      // Create terminal for build process
-      const terminalName = `sli.dev: Build ${name}`;
-      const terminal = vscode.window.createTerminal(terminalName);
+      // Run build via exec (terminal removed to avoid duplicate build execution)
+      // Use relative base path so assets load correctly from any deployment directory
+      const buildCommand = `pnpm build --base ${basePath}`;
 
-      // Show the base path in terminal output
-      terminal.sendText(`# Building "${name}" with --base ${basePath}`);
-      terminal.sendText(`cd "${lecturePath}"`);
-      terminal.sendText('pnpm install');
-      terminal.sendText(`pnpm build --base ${basePath}`);
-      terminal.show();
-
-      // Wait for build to complete, then copy files to destination
-      const buildCommand = `cd "${lecturePath}" && pnpm build --base ${basePath}`;
-      
       await new Promise<void>((resolve, reject) => {
         child_process.exec(buildCommand, { cwd: lecturePath, timeout: 300000 }, (error, stdout, stderr) => {
           if (error) {
@@ -188,9 +180,8 @@ export class BuildManager {
       // Copy built files to destination directory
       await this.copyBuiltFiles(copySource, copyDestination);
 
-    } catch (error) {
+    } finally {
       await this.hideProgress();
-      throw error;
     }
   }
 
@@ -211,8 +202,8 @@ export class BuildManager {
     try {
       fs.cpSync(source, destination, { recursive: true, force: true });
     } catch (error) {
-      console.error(`Failed to copy built files from ${source} to ${destination}:`, error);
-      // Don't throw - build was successful, copy is secondary
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to copy built files from ${source} to ${destination}: ${errorMessage}`);
     }
   }
 
@@ -290,9 +281,15 @@ export class BuildManager {
         throw new Error('Course name not found in sliman.json');
       }
 
-      // Path to index.html: {courseRoot}/{courseName}/index.html
+      // Determine output directory based on deployRoot mode
+      // - deployRoot: false → {courseName}/
+      // - deployRoot: true  → built/
+      const deployRoot = await this.courseManager.readDeployRoot();
+      const outputDir = deployRoot ? 'built' : courseName;
+
+      // Path to index.html: {courseRoot}/{outputDir}/index.html
       const courseRoot = this.courseManager.getCourseRoot();
-      const indexHtmlPath = vscode.Uri.joinPath(courseRoot, courseName, 'index.html');
+      const indexHtmlPath = vscode.Uri.joinPath(courseRoot, outputDir, 'index.html');
 
       // Read current index.html content
       let indexHtmlContent: string;
@@ -306,7 +303,7 @@ export class BuildManager {
       // Read slides.json to get lecture list
       let slidesConfig: { slides: Array<{ name: string; title: string }> };
       try {
-        const slidesPath = vscode.Uri.joinPath(courseRoot, courseName, 'slides.json');
+        const slidesPath = vscode.Uri.joinPath(courseRoot, outputDir, 'slides.json');
         const slidesContent = await vscode.workspace.fs.readFile(slidesPath);
         slidesConfig = JSON.parse(new TextDecoder().decode(slidesContent));
       } catch (error) {

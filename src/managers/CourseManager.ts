@@ -198,18 +198,27 @@ export class CourseManager {
   // ============================================
 
   /**
-   * Reads the slides configuration from {course_name}/slides.json
+   * Reads the slides configuration from the appropriate location based on deployRoot mode
+   * - deployRoot: false → {course_name}/slides.json
+   * - deployRoot: true  → built/slides.json
    * @returns Promise that resolves to SlidesConfig or null if not found/invalid
    */
   async readSlidesJson(): Promise<SlidesConfig | null> {
-    // Get course name to build path to {course_name}/slides.json
+    // Get course name to build path
     const courseName = await this.readCourseName();
     if (!courseName) {
       console.error('Cannot read slides.json: course name not found in sliman.json');
       return null;
     }
-    
-    const slidesJsonUri = vscode.Uri.joinPath(this.getBuiltCourseDirWithName(courseName), SLIDES_FILENAME);
+
+    // Determine slides.json location based on deployRoot mode
+    // - deployRoot: false → {courseName}/slides.json
+    // - deployRoot: true  → built/slides.json (BuildManager copies to 'built/' for root deploy)
+    const deployRoot = await this.readDeployRoot();
+    const slidesJsonUri = deployRoot
+      ? vscode.Uri.joinPath(this.workspaceUri, 'built', SLIDES_FILENAME)
+      : vscode.Uri.joinPath(this.workspaceUri, courseName, SLIDES_FILENAME);
+
     try {
       const content = await vscode.workspace.fs.readFile(slidesJsonUri);
       const parsed = JSON.parse(new TextDecoder().decode(content));
@@ -228,18 +237,27 @@ export class CourseManager {
   }
 
   /**
-   * Writes the slides configuration to {course_name}/slides.json
+   * Writes the slides configuration to the appropriate location based on deployRoot mode
+   * - deployRoot: false → {course_name}/slides.json
+   * - deployRoot: true  → built/slides.json
    * @param config - The SlidesConfig to write
    * @returns Promise that resolves when complete
    */
   async writeSlidesJson(config: SlidesConfig): Promise<void> {
-    // Get course name to build path to {course_name}/slides.json
+    // Get course name to build path
     const courseName = await this.readCourseName();
     if (!courseName) {
       throw new Error('Cannot write slides.json: course name not found in sliman.json');
     }
-    
-    const slidesJsonUri = vscode.Uri.joinPath(this.getBuiltCourseDirWithName(courseName), SLIDES_FILENAME);
+
+    // Determine slides.json location based on deployRoot mode
+    // - deployRoot: false → {courseName}/slides.json
+    // - deployRoot: true  → built/slides.json
+    const deployRoot = await this.readDeployRoot();
+    const slidesJsonUri = deployRoot
+      ? vscode.Uri.joinPath(this.workspaceUri, 'built', SLIDES_FILENAME)
+      : vscode.Uri.joinPath(this.workspaceUri, courseName, SLIDES_FILENAME);
+
     try {
       const content = JSON.stringify(config, null, 2);
       await vscode.workspace.fs.writeFile(slidesJsonUri, new TextEncoder().encode(content));

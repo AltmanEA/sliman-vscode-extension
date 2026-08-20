@@ -186,11 +186,25 @@ suite('CourseManager Tests', () => {
     });
 
     test('readSlidesJson returns null for missing file', async () => {
-      await createMinimalCourse(tempDir, 'test-course');
+      await createMinimalCourse(tempDir, 'Test Course');
 
-      // Don't create slides.json - it should return null
       const result = await courseManager.readSlidesJson();
       assert.strictEqual(result, null);
+    });
+
+    test('readSlidesJson reads from built/ when deployRoot is true', async () => {
+      const lectures = [
+        { name: 'lecture-1', title: 'Introduction' },
+        { name: 'lecture-2', title: 'Advanced Topics' }
+      ];
+      await createCourseStructure(tempDir, 'test-course-deployroot', lectures, { deployRoot: true });
+
+      const result = await courseManager.readSlidesJson();
+      assert.strictEqual(result?.slides.length, 2);
+      assert.strictEqual(result?.slides[0].name, 'lecture-1');
+      assert.strictEqual(result?.slides[0].title, 'Introduction');
+      assert.strictEqual(result?.slides[1].name, 'lecture-2');
+      assert.strictEqual(result?.slides[1].title, 'Advanced Topics');
     });
 
     test('writeSlimanConfig handles invalid JSON gracefully', async () => {

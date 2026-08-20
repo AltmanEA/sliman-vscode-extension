@@ -60,6 +60,8 @@ template/                     # Шаблоны для создания курс�
 └── global-top.vue            # Глобальный компонент верхней панели
 
 test-workspace/               # Рабочее пространство для тестов
+doc/                          # Документация
+└── build-process.md          # Подробное описание процесса сборки
 package.json                  # Конфигурация расширения VS Code
 tsconfig.json                 # Конфигурация TypeScript
 eslint.config.mjs             # Конфигурация ESLint (flat config)

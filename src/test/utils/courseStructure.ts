@@ -11,22 +11,26 @@ import { SLIMAN_FILENAME, SLIDES_FILENAME } from '../../constants';
  * @param tempDir - Path to the test workspace directory
  * @param courseName - Name of the course (default: 'test-course')
  * @param lectures - Optional array of lectures to create
+ * @param options - Optional settings (deployRoot, slides)
  */
 export async function createCourseStructure(
   tempDir: string, 
   courseName: string = 'test-course',
-  lectures: Array<{ name: string, title: string }> = []
+  lectures: Array<{ name: string, title: string }> = [],
+  options: { deployRoot?: boolean; slides?: boolean } = {}
 ): Promise<void> {
+  const { deployRoot = false, slides = true } = options;
+
   // Create sliman.json in root
   const slimanPath = path.join(tempDir, SLIMAN_FILENAME);
-  await fs.writeFile(slimanPath, JSON.stringify({ course_name: courseName }, null, 2));
+  await fs.writeFile(slimanPath, JSON.stringify({ course_name: courseName, deployRoot }, null, 2));
 
-  // Create course directory
-  const courseDir = path.join(tempDir, courseName);
-  await fs.mkdir(courseDir, { recursive: true });
+  // Determine slides.json location based on deployRoot
+  const slidesJsonDir = deployRoot ? path.join(tempDir, 'built') : path.join(tempDir, courseName);
+  const slidesPath = path.join(slidesJsonDir, SLIDES_FILENAME);
 
-  // Create slides.json in course directory
-  const slidesPath = path.join(courseDir, SLIDES_FILENAME);
+  // Create slides.json directory and file
+  await fs.mkdir(slidesJsonDir, { recursive: true });
   const slidesConfig = {
     slides: lectures.map(lecture => ({
       name: lecture.name,
@@ -35,17 +39,18 @@ export async function createCourseStructure(
   };
   await fs.writeFile(slidesPath, JSON.stringify(slidesConfig, null, 2));
 
-  // Create slides directory with lectures
-  const slidesDir = path.join(tempDir, 'slides');
-  await fs.mkdir(slidesDir, { recursive: true });
+  // Create slides directory with lectures (only if slides option is true)
+  if (slides) {
+    const slidesDir = path.join(tempDir, 'slides');
+    await fs.mkdir(slidesDir, { recursive: true });
 
-  for (const lecture of lectures) {
-    const lectureDir = path.join(slidesDir, lecture.name);
-    await fs.mkdir(lectureDir, { recursive: true });
-    
-    // Create slides.md for each lecture
-    const slidesFile = path.join(lectureDir, 'slides.md');
-    await fs.writeFile(slidesFile, `---
+    for (const lecture of lectures) {
+      const lectureDir = path.join(slidesDir, lecture.name);
+      await fs.mkdir(lectureDir, { recursive: true });
+      
+      // Create slides.md for each lecture
+      const slidesFile = path.join(lectureDir, 'slides.md');
+      await fs.writeFile(slidesFile, `---
 title: ${lecture.title}
 canvasWidth: 1280
 routerMode: history
@@ -55,6 +60,7 @@ routerMode: history
 
 Slide content here.
 `);
+    }
   }
 }
 
