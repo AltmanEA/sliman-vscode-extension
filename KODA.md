@@ -258,12 +258,33 @@ interface BuildError {
 }
 
 Основные методы:
-- `buildLecture(name)` — сборка одной лекции (install + build)
+- `buildLecture(name, deployRoot)` — сборка одной лекции (очистка кэша + build + копирование)
 - `buildCourse()` — сборка всего курса (все лекции)
 - `runDevServer(name)` — запуск dev сервера лекции в терминале
 - `updateIndexHtml()` — обновление index.html со списком лекций
 - `showProgress(progress)` — отображение прогресса в status bar
 - `hideProgress()` — скрытие status bar
+
+### Процесс сборки лекции (buildLecture)
+
+Перед каждой сборкой `BuildManager` выполняет полную очистку артефактов:
+
+1. **Очистка Vite кэша и dist в директории лекции** (`cleanViteCache`)
+   - Удаляет `node_modules/.vite` — UnoCSS гарантированно перегенерирует иконки
+   - Удаляет `dist/` — исключает смешивание артефактов разных сборок
+
+2. **Запуск сборки Slidev** (`pnpm build --base /{basePath}/`)
+   - Для subdir deploy: `--base /{courseName}/{lectureName}/`
+   - Для root deploy: `--base /{lectureName}/`
+
+3. **Очистка выходной директории** (`cleanDirectory`)
+   - Удаляет `{courseName}/{lectureName}/` или `built/{lectureName}/`
+   - Исключает смешивание CSS/JS файлов разных сборок
+
+4. **Копирование результатов** (`copyBuiltFiles`)
+   - Копирует `lecture/dist/` → `{courseName}/{lectureName}/` (или `built/{lectureName}/`)
+
+Это гарантирует, что GET-запросы всегда получают согласованные файлы одной сборки.
 
 #### 6. Constants — Константы
 

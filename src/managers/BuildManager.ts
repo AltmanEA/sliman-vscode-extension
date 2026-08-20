@@ -159,6 +159,9 @@ export class BuildManager {
     this.showProgress({ lecture: name, stage: 'building' });
 
     try {
+      // Clean Vite cache and dist to avoid stale UnoCSS icons and mixed artifacts
+      this.cleanViteCache(lecturePath);
+
       // Run build via exec (terminal removed to avoid duplicate build execution)
       // Use relative base path so assets load correctly from any deployment directory
       const buildCommand = `pnpm build --base ${basePath}`;
@@ -177,6 +180,9 @@ export class BuildManager {
         });
       });
 
+      // Clean destination directory to avoid stale artifacts from previous builds
+      this.cleanDirectory(copyDestination);
+
       // Copy built files to destination directory
       await this.copyBuiltFiles(copySource, copyDestination);
 
@@ -186,8 +192,42 @@ export class BuildManager {
   }
 
   /**
-   * Copies built files from source to destination directory
-   * Creates destination directory if it doesn't exist
+   * Cleans (removes) a directory recursively.
+   * No-op if the directory does not exist.
+   * @param dirPath - Path to the directory to remove
+   */
+  private cleanDirectory(dirPath: string): void {
+    try {
+      fs.rmSync(dirPath, { recursive: true, force: true });
+    } catch {
+      // Silently ignore — directory may not exist or be inaccessible
+    }
+  }
+
+  /**
+   * Cleans build cache (Vite cache and dist) inside a lecture directory.
+   * Must be called before running slidev build to avoid stale UnoCSS icons
+   * and mixed artifacts from previous builds.
+   * @param lecturePath - Path to the lecture directory (e.g. slides/review/)
+   */
+  private cleanViteCache(lecturePath: string): void {
+    try {
+      fs.rmSync(path.join(lecturePath, 'node_modules', '.vite'), {
+        recursive: true,
+        force: true,
+      });
+      fs.rmSync(path.join(lecturePath, 'dist'), {
+        recursive: true,
+        force: true,
+      });
+    } catch {
+      // Silently ignore — directories may not exist
+    }
+  }
+
+  /**
+   * Copies built files from source to destination directory.
+   * Creates destination directory if it doesn't exist.
    * @param source - Source directory path (lecture/dist)
    * @param destination - Destination directory path
    */
