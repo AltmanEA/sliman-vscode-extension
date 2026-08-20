@@ -2,7 +2,7 @@
 
 > VS Code расширение для управления курсами презентаций на sli.dev
 
-[![Version](https://img.shields.io/badge/version-0.0.3-blue.svg)](https://github.com/AltmanEA/sliman-vscode-extension)
+[![Version](https://img.shields.io/badge/version-0.0.4-blue.svg)](https://github.com/AltmanEA/sliman-vscode-extension)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![VS Code](https://img.shields.io/badge/VS%20Code-%5E1C7B.svg?logo=visual-studio-code&logoColor=white)](https://code.visualstudio.com/)
 
@@ -10,7 +10,7 @@
 
 **sli.dev Course Manager** — это VS Code расширение, которое упрощает создание и управление курсами презентаций, построенных на фреймворке [sli.dev](https://sli.dev/) (Slidev). Расширение предоставляет полный набор инструментов для работы с курсами: от создания новых курсов до сборки и публикации.
 
-**Статус**: Preview (v0.0.3) • **Publisher**: AltmanEA
+**Статус**: Preview (v0.0.4) • **Publisher**: AltmanEA
 
 ## 🚀 Установка
 
@@ -24,7 +24,7 @@
 ### Из VSIX файла
 
 ```bash
-code --install-extension sliman-vscode-extension-0.0.3.vsix
+code --install-extension sliman-vscode-extension-0.0.4.vsix
 ```
 
 ## ⭐ Основные возможности
