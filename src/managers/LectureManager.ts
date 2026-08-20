@@ -659,7 +659,6 @@ export class LectureManager {
       
       // Ensure Monaco dependencies are present
       packageJson.dependencies['monaco-editor'] = '^0.45.0';
-      packageJson.dependencies['@slidev/preset-monaco'] = '^1.2.3';
 
       // Convert back to string with proper formatting
       updatedContent = JSON.stringify(packageJson, null, 2);

@@ -5,6 +5,11 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2026-08-20
+
+### Исправлено
+- **Constants и LectureManager**: удалены несуществующие npm-пакеты `@slidev/preset-monaco`, `@slidev/preset-katex`, `@slidev/preset-mermaid`, `@slidev/preset-drauu` из зависимостей модулей. Эти пакеты не существуют на npm — Monaco, KaTeX, Mermaid и Drauu встроены в Slidev из коробки. Установка зависимостей лекций с включёнными модулями теперь проходит успешно.
+
 ## [0.0.4] - 2026-08-20
 
 ### Исправлено

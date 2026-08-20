@@ -96,7 +96,7 @@ export default defineConfig({
     id: 'monaco',
     name: 'Monaco Editor',
     description: 'In-browser code editor for interactive programming examples',
-    dependencies: ['monaco-editor', '@slidev/preset-monaco'],
+    dependencies: ['monaco-editor'],
     configFile: 'slidev.config.ts',
     defaultConfig: `import { defineConfig } from '@slidev/types'
 
@@ -149,7 +149,7 @@ export default defineConfig({
     id: 'katex',
     name: 'KaTeX',
     description: 'Fast math typesetting for LaTeX math expressions',
-    dependencies: ['katex', '@slidev/preset-katex'],
+    dependencies: ['katex'],
     configFile: 'katex.config.ts',
     defaultConfig: `import { defineConfig } from '@slidev/types'
 
@@ -220,7 +220,7 @@ export default defineConfig({
     id: 'mermaid',
     name: 'Mermaid',
     description: 'Create diagrams and flowcharts using Mermaid syntax',
-    dependencies: ['mermaid', '@slidev/preset-mermaid'],
+    dependencies: ['mermaid'],
     configFile: 'mermaid.config.ts',
     defaultConfig: `import { defineConfig } from '@slidev/types'
 
@@ -319,7 +319,7 @@ export default defineConfig({
     id: 'drauu',
     name: 'Drauu',
     description: 'Drawing and annotation tools for presentations',
-    dependencies: ['drauu', '@slidev/preset-drauu'],
+    dependencies: ['drauu'],
     configFile: 'drauu.config.ts',
     defaultConfig: `import { defineConfig } from '@slidev/types'
 
