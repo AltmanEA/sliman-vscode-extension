@@ -177,6 +177,9 @@ export class BuildManager {
         });
       });
 
+      // Clean destination directory to avoid stale artifacts from previous builds
+      this.cleanDirectory(copyDestination);
+
       // Copy built files to destination directory
       await this.copyBuiltFiles(copySource, copyDestination);
 
@@ -186,8 +189,21 @@ export class BuildManager {
   }
 
   /**
-   * Copies built files from source to destination directory
-   * Creates destination directory if it doesn't exist
+   * Cleans (removes) a directory recursively.
+   * No-op if the directory does not exist.
+   * @param dirPath - Path to the directory to remove
+   */
+  private cleanDirectory(dirPath: string): void {
+    try {
+      fs.rmSync(dirPath, { recursive: true, force: true });
+    } catch {
+      // Silently ignore — directory may not exist or be inaccessible
+    }
+  }
+
+  /**
+   * Copies built files from source to destination directory.
+   * Creates destination directory if it doesn't exist.
    * @param source - Source directory path (lecture/dist)
    * @param destination - Destination directory path
    */
