@@ -1,8 +1,8 @@
 {
   "name": "sliman",
   "displayName": "sli.dev Course manager",
-  "description": "Managing a course from presentations on sli.dev",
-  "version": "0.0.2",
+  "description": "Managing a course from presentations on sli.dev with dual build modes (root and nested)",
+  "version": "0.0.3",
   "publisher": "AltmanEA",
   "repository": {
     "type": "git",
