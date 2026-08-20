@@ -2,7 +2,7 @@
 
 > VS Code расширение для управления курсами презентаций на sli.dev
 
-[![Version](https://img.shields.io/badge/version-0.0.2-blue.svg)](https://github.com/AltmanEA/sliman-vscode-extension)
+[![Version](https://img.shields.io/badge/version-0.0.3-blue.svg)](https://github.com/AltmanEA/sliman-vscode-extension)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![VS Code](https://img.shields.io/badge/VS%20Code-%5E1C7B.svg?logo=visual-studio-code&logoColor=white)](https://code.visualstudio.com/)
 
@@ -10,7 +10,7 @@
 
 **sli.dev Course Manager** — это VS Code расширение, которое упрощает создание и управление курсами презентаций, построенных на фреймворке [sli.dev](https://sli.dev/) (Slidev). Расширение предоставляет полный набор инструментов для работы с курсами: от создания новых курсов до сборки и публикации.
 
-**Статус**: Preview (v0.0.2) • **Publisher**: AltmanEA
+**Статус**: Preview (v0.0.3) • **Publisher**: AltmanEA
 
 ## 🚀 Установка
 
@@ -24,7 +24,7 @@
 ### Из VSIX файла
 
 ```bash
-code --install-extension sliman-vscode-extension-0.0.1.vsix
+code --install-extension sliman-vscode-extension-0.0.3.vsix
 ```
 
 ## ⭐ Основные возможности
@@ -40,7 +40,7 @@ code --install-extension sliman-vscode-extension-0.0.1.vsix
 - **Структура лекций**: Автоматическая настройка package.json и зависимостей
 
 ### 🔨 Сборка и публикация
-- **Локальная сборка**: Компиляция лекций в статические файлы
+- **Локальная сборка**: Компиляция лекций в статические файлы с поддержкой двух режимов деплоя (в корень курса или во вложенную директорию)
 - **Сборка курса**: Пакетная сборка всех лекций курса
 - **GitHub Pages**: Автоматическая настройка для публикации на GitHub Pages
 - **Локальный просмотр**: Запуск HTTP сервера для предварительного просмотра
@@ -249,16 +249,24 @@ my-course/
 │   └── lecture-basics/
 │       ├── slides.md
 │       └── package.json
-├── my-course/              # Собранный курс
+├── my-course/              # Собранный курс (вложенный режим)
 │   ├── slides.json         # Конфигурация всех лекций
 │   ├── index.html          # Главная страница курса
 │   ├── lecture-intro/      # Собранная лекция 1
 │   └── lecture-basics/     # Собранная лекция 2
+└── built/                  # Собранный курс (режим корня)
+    ├── index.html          # Главная страница курса
+    └── lecture-intro/      # Собранная лекция 1
+        └── ...
 ├── .github/
 │   └── workflows/
 │       └── static.yml      # GitHub Pages workflow (автоматически)
 └── .gitignore              # Git ignore файл (автоматически)
 ```
+
+### Режимы сборки (v0.0.3+):
+- **Вложенный режим**: Собранная лекция сохраняется в `{courseName}/lecture-name/`
+- **Режим корня**: Собранная лекция сохраняется в `built/lecture-name/` — упрощённая структура для деплоя
 
 ### Автоматические компоненты:
 - **GitHub Pages**: Workflow создается автоматически при создании курса
