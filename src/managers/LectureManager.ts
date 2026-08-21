@@ -13,6 +13,7 @@ import {
   TEMPLATE_GLOBAL_TOP,
   TEMPLATE_COURSER,
   AVAILABLE_MODULES,
+  DEPENDENCY_VERSIONS,
 } from '../constants';
 import { ProcessHelper } from '../utils/process';
 import { generateLectureFolderName, isValidFolderName } from '../utils/translit';
@@ -568,7 +569,8 @@ export class LectureManager {
         const moduleInfo = AVAILABLE_MODULES.find(m => m.id === moduleId);
         if (moduleInfo) {
           for (const dep of moduleInfo.dependencies) {
-            packageJson.dependencies[dep] = 'latest';
+            const version = DEPENDENCY_VERSIONS[dep] || 'latest';
+            packageJson.dependencies[dep] = version;
           }
         }
       }
@@ -658,7 +660,7 @@ export class LectureManager {
       const packageJson = JSON.parse(updatedContent);
       
       // Ensure Monaco dependencies are present
-      packageJson.dependencies['monaco-editor'] = '^0.45.0';
+      packageJson.dependencies['monaco-editor'] = '^0.52.0';
 
       // Convert back to string with proper formatting
       updatedContent = JSON.stringify(packageJson, null, 2);

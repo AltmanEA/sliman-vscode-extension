@@ -73,6 +73,17 @@ export interface ModuleInfo {
   defaultConfig?: string;
 }
 
+/** Dependency versions map for modules */
+export const DEPENDENCY_VERSIONS: Record<string, string> = {
+  'shiki': '^1.0.0',
+  'monaco-editor': '^0.52.0',
+  'katex': '^0.16.9',
+  'mermaid': '^11.0.0',
+  'drauu': '^0.4.0',
+  '@iconify/vue': '^4.1.1',
+  '@iconify/json': '^2.2.196',
+};
+
 /** Module definitions */
 export const AVAILABLE_MODULES: ModuleInfo[] = [
   {

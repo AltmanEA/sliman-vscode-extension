@@ -383,8 +383,19 @@ export class BuildManager {
     // Reuse or create terminal
     const terminal = this.getOrCreateLectureTerminal(name);
 
-    // Run pnpm run dev (PowerShell: Set-Location)
-    terminal.sendText('Set-Location "' + lecturePath + '"; pnpm run dev');
+    // Check if dependencies are installed (node_modules exists)
+    const nodeModulesPath = path.join(lecturePath, 'node_modules');
+    const hasDeps = fs.existsSync(nodeModulesPath);
+
+    if (!hasDeps) {
+      // Dependencies not installed — run install first, then dev
+      // Use && to only start dev if install succeeds
+      terminal.sendText('Set-Location "' + lecturePath + '"');
+      terminal.sendText('pnpm install && pnpm run dev');
+    } else {
+      // Run pnpm run dev (PowerShell: Set-Location)
+      terminal.sendText('Set-Location "' + lecturePath + '"; pnpm run dev');
+    }
     terminal.show();
   }
 
