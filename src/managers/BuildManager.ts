@@ -1,131 +1,93 @@
-/**
- * Build Manager - Orchestrates build processes for lectures and courses
- * 
- * Provides methods for:
- * - Building individual lectures (via terminal)
- * - Building entire courses (via terminal)
- * - Running development servers (via terminal)
- * 
- * Commands using terminal:
- * - buildLecture() - creates terminal for pnpm build
- * - editLecture() - creates terminal for pnpm dev
- * - runDevServer() - creates terminal for dev server
- * 
- * Commands using output channel:
- * - buildCourse() - uses shared output channel
- */
+'use strict';
 
 import * as vscode from 'vscode';
-import * as child_process from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { CourseManager } from './CourseManager';
 import type { LectureManager } from './LectureManager';
 
 /**
- * Build progress information for progress notifications
+ * Build Manager — Orchestrates build processes via VS Code terminals.
+ *
+ * All build commands run in real VS Code terminals that the user can see,
+ * interact with, and cancel (Ctrl+C / close terminal).
+ *
+ * Build execution path:
+ * - buildLecture(name) — creates/reuses a terminal, sends clean + build + copy commands,
+ *   waits for '.sliman-build-status.json' file to detect completion.
+ * - buildCourse() — reuses the shared 'sli.dev' terminal, sends commands for each lecture
+ *   sequentially, then updates index.html via FS.
+ * - runDevServer(name) — creates/reuses a per-lecture terminal, runs pnpm run dev.
+ *
+ * Signal protocol:
+ * - After each lecture build, the last command writes '.sliman-build-status.json' file
+ *   with content {"status": "done"}.
+ * - The manager polls for this file to know the build completed.
+ * - If the file is not detected within 10 minutes, the build is considered failed.
+ * - If the user closes the terminal, the build is considered cancelled.
  */
-export interface BuildProgress {
-  /** Lecture name (optional, for course-level builds) */
-  lecture?: string;
-  /** Current build stage */
-  stage: 'installing' | 'building' | 'copying' | 'updating' | 'complete';
-  /** Progress percentage (0-100) */
-  percent?: number;
-}
 
-/**
- * Build error information
- */
-export interface BuildError {
-  /** Error type */
-  type: 'lecture-not-found' | 'npm-not-found' | 'build-failed' | 'timeout';
-  /** Lecture name (if applicable) */
-  lecture?: string;
-  /** Error message */
-  message: string;
-  /** Process exit code */
-  exitCode?: number;
-}
+// Max wait time for build signal (10 minutes)
+const BUILD_SIGNAL_TIMEOUT_MS = 600000;
 
-/**
- * Build Manager handles building and running lectures/courses
- * with real-time output via VS Code Output Channel
- */
 export class BuildManager {
-  /** Status bar item for progress display */
-  private _statusBarItem: vscode.StatusBarItem | null = null;
+  /** Shared terminal for course-level builds (buildCourse) */
+  private courseTerminal: vscode.Terminal | null = null;
+
+  /** Map of per-lecture terminals: lectureName -> Terminal */
+  private readonly lectureTerminals = new Map<string, vscode.Terminal>();
 
   /**
-   * Creates a new BuildManager instance
-   * @param courseManager - Course Manager instance
-   * @param lectureManager - Lecture Manager instance
+   * Creates a new BuildManager instance.
    */
   constructor(
     private readonly courseManager: CourseManager,
     private readonly lectureManager: LectureManager
-  ) {
-    // No output channel - commands using terminal will handle their own output
-    // Commands using output channel will use the shared one from extension.ts
-  }
+  ) {}
 
   /**
-   * Disposes all resources held by BuildManager
-   * Should be called when BuildManager is no longer needed
+   * Disposes all resources held by BuildManager.
    */
   dispose(): void {
-    if (this._statusBarItem) {
-      this._statusBarItem.dispose();
-      this._statusBarItem = null;
+    this.courseTerminal?.dispose();
+    this.courseTerminal = null;
+
+    for (const [, terminal] of this.lectureTerminals) {
+      terminal.dispose();
     }
+    this.lectureTerminals.clear();
   }
 
-  /**
-   * Shows build progress in status bar
-   * @param progress - Build progress information
-   */
-  async showProgress(progress: BuildProgress): Promise<void> {
-    if (!this._statusBarItem) {
-      this._statusBarItem = vscode.window.createStatusBarItem(
-        vscode.StatusBarAlignment.Right,
-        100
-      );
-    }
-
-    const lectureInfo = progress.lecture ? ` ${progress.lecture}` : '';
-    const stageText = progress.stage.charAt(0).toUpperCase() + progress.stage.slice(1);
-    const percentText = progress.percent !== undefined ? ` ${progress.percent}%` : '';
-
-    this._statusBarItem.text = `$(tools) Building${lectureInfo}: ${stageText}${percentText}`;
-    this._statusBarItem.show();
-  }
+  // ============================================
+  // Build single lecture via terminal
+  // ============================================
 
   /**
-   * Hides the build progress status bar item
-   */
-  async hideProgress(): Promise<void> {
-    if (this._statusBarItem) {
-      this._statusBarItem.hide();
-      this._statusBarItem.dispose();
-      this._statusBarItem = null;
-    }
-  }
-
-  /**
-   * Builds a single lecture via terminal with correct --base flag based on deployRoot
-   * Creates a terminal and runs pnpm install and pnpm build
-   * After build completes, copies dist/ to the appropriate destination directory
-   * Terminal remains open for user interaction
+   * Builds a single lecture using a dedicated terminal.
+   *
+   * Steps (sent via terminal.sendText):
+   * 1. cd lecture-path
+   * 2. Clean Vite cache: rm -rf node_modules/.vite; rm -rf dist
+   * 3. Build: pnpm build --base /...
+   * 4. Clean destination: rm -rf dest-path
+   * 5. Copy: cp -r dist dest-path
+   * 6. Signal: write .sliman-build-status.json file
+   *
+   * Waits for '.sliman-build-status.json' file to detect completion.
+   *
    * @param name - Lecture folder name
    * @param deployRoot - When false: --base /{courseName}/{lectureName}/, copy to {courseName}/{lectureName}/
-   *                     When true:  --base /, copy to built/{lectureName}/
-   * @returns Promise resolving when build and copy complete
+   *                     When true:  --base /{lectureName}/, copy to built/{lectureName}/
+   * @returns Promise resolving when build completes (signal detected)
    * @throws Error if lecture doesn't exist or build fails
    */
   async buildLecture(name: string, deployRoot: boolean = false): Promise<void> {
     // Check if lecture exists
     if (!(await this.lectureManager.lectureExists(name))) {
-      throw new Error(`Lecture "${name}" does not exist`);
+      throw Object.assign(
+        new Error(`Lecture "${name}" does not exist`),
+        { type: 'lecture-not-found' as const, lecture: name }
+      );
     }
 
     const lecturePath = this.lectureManager.getLectureDir(name).fsPath;
@@ -138,122 +100,277 @@ export class BuildManager {
 
     // Determine base path and copy destination based on deployRoot mode
     let basePath: string;
-    let copySource: string;
     let copyDestination: string;
 
     if (deployRoot) {
-      // Root deploy mode: copy to built/{lectureName}/
-      // Use lecture-relative base path so assets resolve to /{lectureName}/assets/...
       basePath = `/${name}/`;
-      copySource = path.join(lecturePath, 'dist');
       copyDestination = path.join(this.courseManager.getCourseRoot().fsPath, 'built', name);
     } else {
-      // Subdir deploy mode (default): copy to {courseName}/{lectureName}/
-      // Use course-relative base path for assets
       basePath = `/${courseName}/${name}/`;
-      copySource = path.join(lecturePath, 'dist');
       copyDestination = path.join(this.courseManager.getCourseRoot().fsPath, courseName, name);
     }
 
-    // Show progress in status bar
-    this.showProgress({ lecture: name, stage: 'building' });
+    // Get or create terminal for this lecture
+    const terminal = this.getOrCreateLectureTerminal(name);
 
-    try {
-      // Clean Vite cache and dist to avoid stale UnoCSS icons and mixed artifacts
-      this.cleanViteCache(lecturePath);
+    // Send build commands
+    this.sendBuildCommands(terminal, lecturePath, basePath, copyDestination);
 
-      // Run build via exec (terminal removed to avoid duplicate build execution)
-      // Use relative base path so assets load correctly from any deployment directory
-      const buildCommand = `pnpm build --base ${basePath}`;
+    // Wait for build signal
+    await this.waitForBuildDone(terminal, name);
+  }
 
-      await new Promise<void>((resolve, reject) => {
-        child_process.exec(buildCommand, { cwd: lecturePath, timeout: 300000 }, (error, stdout, stderr) => {
-          if (error) {
-            reject(new Error(`Build failed: ${error.message}`));
-            return;
+  /**
+   * Sends all build commands to the terminal sequentially.
+   * The last command writes a status file for the extension to detect completion.
+   */
+  private sendBuildCommands(
+    terminal: vscode.Terminal,
+    lecturePath: string,
+    basePath: string,
+    copyDestination: string
+  ): void {
+    // Step 1: Change to lecture directory (PowerShell: Set-Location)
+    terminal.sendText('Set-Location "' + lecturePath + '"');
+
+    // Step 2: Clean Vite cache and dist (PowerShell: Remove-Item -Recurse -Force)
+    // Use forward slashes — PowerShell accepts them on Windows
+    terminal.sendText('Remove-Item -Path "node_modules/.vite" -Recurse -Force -ErrorAction SilentlyContinue');
+    terminal.sendText('Remove-Item -Path "dist" -Recurse -Force -ErrorAction SilentlyContinue');
+
+    // Step 3: Build (use npx to avoid pnpm wrapping args in PowerShell)
+    terminal.sendText(`npx slidev build --base ${basePath}`);
+
+    // Step 4: Clean destination (PowerShell)
+    terminal.sendText(`Remove-Item -Path "${copyDestination}" -Recurse -Force -ErrorAction SilentlyContinue`);
+
+    // Step 5: Copy built files (PowerShell: Copy-Item -Recurse)
+    // Only copy if dist exists (build succeeded)
+    // Use "dist/." to copy all contents including subdirectories
+    terminal.sendText('if (Test-Path "dist") { Copy-Item -Path "dist/." -Destination "' + copyDestination + '" -Recurse -Force }');
+
+    // Step 6: Write status file (PowerShell: Set-Content)
+    const courseRoot = this.courseManager.getCourseRoot().fsPath;
+    const statusFile = JSON.stringify({ status: 'done' });
+    terminal.sendText(`Set-Content -Path "${path.join(courseRoot, '.sliman-build-status.json')}" -Value '${statusFile}'`);
+  }
+
+  /**
+   * Gets or creates a per-lecture terminal.
+   */
+  private getOrCreateLectureTerminal(name: string): vscode.Terminal {
+    const terminalName = `sli.dev: ${name}`;
+
+    let terminal = this.lectureTerminals.get(name);
+
+    if (terminal && !terminal.exitStatus) {
+      // Terminal exists and is still running — reuse it
+      return terminal;
+    }
+
+    // Create new terminal
+    terminal = vscode.window.createTerminal({ name: terminalName });
+    this.lectureTerminals.set(name, terminal);
+
+    return terminal;
+  }
+
+  /**
+   * Waits for the build status file to appear (file-based signal).
+   * Rejects if the file does not appear within timeout or terminal is closed.
+   */
+  private waitForBuildDone(terminal: vscode.Terminal, lectureName: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const statusFilePath = path.join(this.courseManager.getCourseRoot().fsPath, '.sliman-build-status.json');
+      let done = false;
+
+      // Poll for the status file
+      const pollInterval = setInterval(() => {
+        if (done) return;
+
+        try {
+          if (fs.existsSync(statusFilePath)) {
+            const content = fs.readFileSync(statusFilePath, 'utf-8');
+            const status = JSON.parse(content);
+
+            done = true;
+            clearInterval(pollInterval);
+
+            // Clean up the status file
+            try { fs.unlinkSync(statusFilePath); } catch { /* ignore */ }
+
+            if (status.status === 'done') {
+              resolve();
+            } else {
+              reject(new Error(`Build failed for lecture "${lectureName}": ${status.error || 'unknown error'}`));
+            }
           }
-          if (stderr) {
-            console.error(`Build stderr for ${name}: ${stderr}`);
+        } catch {
+          // File not ready yet or parse error — keep polling
+        }
+      }, 500);
+
+      // Timeout: if signal not received within BUILD_SIGNAL_TIMEOUT_MS
+      const timeoutHandle = setTimeout(() => {
+        if (!done) {
+          done = true;
+          clearInterval(pollInterval);
+          reject(Object.assign(
+            new Error(`Build timed out after ${BUILD_SIGNAL_TIMEOUT_MS / 1000} seconds for lecture "${lectureName}"`),
+            { type: 'timeout' as const, lecture: lectureName }
+          ));
+        }
+      }, BUILD_SIGNAL_TIMEOUT_MS);
+
+      // If terminal is closed by user, cancel the build
+      const closeListener = vscode.window.onDidCloseTerminal((closed) => {
+        if (closed === terminal && !done) {
+          done = true;
+          clearInterval(pollInterval);
+          clearTimeout(timeoutHandle);
+          closeListener.dispose();
+          reject(new Error(`Build cancelled: terminal "${terminal.name}" was closed`));
+        }
+      });
+    });
+  }
+
+  // ============================================
+  // Build entire course via shared terminal
+  // ============================================
+
+  /**
+   * Builds the entire course using a shared terminal.
+   * Each lecture is built sequentially in the same terminal.
+   * After all lectures are built, updates index.html via FS.
+   */
+  async buildCourse(): Promise<void> {
+    const terminal = this.getCourseTerminal();
+    const lectureDirs = await this.courseManager.getLectureDirectories();
+
+    if (lectureDirs.length === 0) {
+      throw new Error('No lectures found in course');
+    }
+
+    const courseRoot = this.courseManager.getCourseRoot();
+    const courseName = await this.courseManager.readCourseName();
+    if (!courseName) {
+      throw new Error('Course name not found in sliman.json');
+    }
+
+    // Get deployRoot mode
+    const deployRoot = await this.courseManager.readDeployRoot();
+
+    for (const lectureName of lectureDirs) {
+      // Check if lecture exists
+      if (!(await this.lectureManager.lectureExists(lectureName))) {
+        continue; // Skip non-existent lectures
+      }
+
+      const lecturePath = this.lectureManager.getLectureDir(lectureName).fsPath;
+
+      // Determine base path and copy destination
+      let basePath: string;
+      let copyDestination: string;
+
+      if (deployRoot) {
+        basePath = `/${lectureName}/`;
+        copyDestination = path.join(courseRoot.fsPath, 'built', lectureName);
+      } else {
+        basePath = `/${courseName}/${lectureName}/`;
+        copyDestination = path.join(courseRoot.fsPath, courseName, lectureName);
+      }
+
+      // Send build commands for this lecture
+      this.sendBuildCommands(terminal, lecturePath, basePath, copyDestination);
+    }
+
+    // After all lectures, send course build signal (write status file)
+    const statusFile = JSON.stringify({ status: 'done' });
+    terminal.sendText(`Set-Content -Path "${path.join(courseRoot.fsPath, '.sliman-build-status.json')}" -Value '${statusFile}'`);
+
+    // Wait for course build signal
+    await this.waitForCourseBuildDone(terminal);
+
+    // Update index.html via FS (not via terminal)
+    await this.updateIndexHtml();
+  }
+
+  /**
+   * Gets or creates the shared course build terminal.
+   */
+  private getCourseTerminal(): vscode.Terminal {
+    if (!this.courseTerminal || this.courseTerminal.exitStatus) {
+      this.courseTerminal = vscode.window.createTerminal({ name: 'sli.dev' });
+    }
+    return this.courseTerminal;
+  }
+
+  /**
+   * Waits for the build status file to appear (file-based signal for course build).
+   * Rejects if the file does not appear within timeout or terminal is closed.
+   */
+  private waitForCourseBuildDone(terminal: vscode.Terminal): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const statusFilePath = path.join(this.courseManager.getCourseRoot().fsPath, '.sliman-build-status.json');
+      let done = false;
+
+      // Poll for the status file
+      const pollInterval = setInterval(() => {
+        if (done) return;
+
+        try {
+          if (fs.existsSync(statusFilePath)) {
+            const content = fs.readFileSync(statusFilePath, 'utf-8');
+            const status = JSON.parse(content);
+
+            done = true;
+            clearInterval(pollInterval);
+
+            // Clean up the status file
+            try { fs.unlinkSync(statusFilePath); } catch { /* ignore */ }
+
+            if (status.status === 'done') {
+              resolve();
+            } else {
+              reject(new Error(`Course build failed: ${status.error || 'unknown error'}`));
+            }
           }
-          console.log(`Build stdout for ${name}: ${stdout}`);
-          resolve();
-        });
+        } catch {
+          // File not ready yet — keep polling
+        }
+      }, 500);
+
+      // Timeout
+      const timeoutHandle = setTimeout(() => {
+        if (!done) {
+          done = true;
+          clearInterval(pollInterval);
+          reject(new Error('Course build timed out'));
+        }
+      }, BUILD_SIGNAL_TIMEOUT_MS);
+
+      // If terminal is closed by user, cancel the build
+      const closeListener = vscode.window.onDidCloseTerminal((closed) => {
+        if (closed === terminal && !done) {
+          done = true;
+          clearInterval(pollInterval);
+          clearTimeout(timeoutHandle);
+          closeListener.dispose();
+          reject(new Error('Course build cancelled: terminal was closed'));
+        }
       });
-
-      // Clean destination directory to avoid stale artifacts from previous builds
-      this.cleanDirectory(copyDestination);
-
-      // Copy built files to destination directory
-      await this.copyBuiltFiles(copySource, copyDestination);
-
-    } finally {
-      await this.hideProgress();
-    }
+    });
   }
 
-  /**
-   * Cleans (removes) a directory recursively.
-   * No-op if the directory does not exist.
-   * @param dirPath - Path to the directory to remove
-   */
-  private cleanDirectory(dirPath: string): void {
-    try {
-      fs.rmSync(dirPath, { recursive: true, force: true });
-    } catch {
-      // Silently ignore — directory may not exist or be inaccessible
-    }
-  }
+  // ============================================
+  // Dev server
+  // ============================================
 
   /**
-   * Cleans build cache (Vite cache and dist) inside a lecture directory.
-   * Must be called before running slidev build to avoid stale UnoCSS icons
-   * and mixed artifacts from previous builds.
-   * @param lecturePath - Path to the lecture directory (e.g. slides/review/)
-   */
-  private cleanViteCache(lecturePath: string): void {
-    try {
-      fs.rmSync(path.join(lecturePath, 'node_modules', '.vite'), {
-        recursive: true,
-        force: true,
-      });
-      fs.rmSync(path.join(lecturePath, 'dist'), {
-        recursive: true,
-        force: true,
-      });
-    } catch {
-      // Silently ignore — directories may not exist
-    }
-  }
-
-  /**
-   * Copies built files from source to destination directory.
-   * Creates destination directory if it doesn't exist.
-   * @param source - Source directory path (lecture/dist)
-   * @param destination - Destination directory path
-   */
-  private copyBuiltFiles(source: string, destination: string): void {
-    // Create destination directory if it doesn't exist
-    const destDir = path.dirname(destination);
-    if (!fs.existsSync(destDir)) {
-      fs.mkdirSync(destDir, { recursive: true });
-    }
-
-    // Copy built files recursively
-    try {
-      fs.cpSync(source, destination, { recursive: true, force: true });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to copy built files from ${source} to ${destination}: ${errorMessage}`);
-    }
-  }
-
-  /**
-   * Runs a development server for a lecture via terminal
-   * Creates a terminal and runs pnpm run dev in the lecture directory
-   * Terminal remains open for user interaction (close manually to stop)
-   * @param name - Lecture folder name
-   * @returns Promise resolving when terminal is created
-   * @throws Error if lecture doesn't exist
+   * Runs a development server for a lecture via terminal.
+   * Creates a terminal and runs pnpm run dev in the lecture directory.
+   * Terminal remains open for user interaction (close manually to stop).
    */
   async runDevServer(name: string): Promise<void> {
     // Check if lecture exists
@@ -262,72 +379,35 @@ export class BuildManager {
     }
 
     const lecturePath = this.lectureManager.getLectureDir(name).fsPath;
-    const terminalName = `sli.dev: ${name}`;
 
-    // Create terminal
-    const terminal = vscode.window.createTerminal(terminalName);
+    // Reuse or create terminal
+    const terminal = this.getOrCreateLectureTerminal(name);
 
-    // Run pnpm run dev with ; separator (works on all PowerShell versions)
-    terminal.sendText(`cd "${lecturePath}"; pnpm run dev`);
+    // Run pnpm run dev (PowerShell: Set-Location)
+    terminal.sendText('Set-Location "' + lecturePath + '"; pnpm run dev');
     terminal.show();
-
-    // Terminal is not disposed - user closes it manually to stop the server
   }
 
-  /**
-   * Builds the entire course using shared output channel
-   * Each lecture is built with the correct deployRoot mode
-   * @param outputChannel - Shared output channel from extension
-   * @returns Promise resolving when build completes
-   * @throws Error if build fails
-   */
-  async buildCourse(outputChannel: vscode.OutputChannel): Promise<void> {
-    // Show progress in status bar
-    this.showProgress({ stage: 'building' });
-
-    try {
-      // Get deployRoot mode
-      const deployRoot = await this.courseManager.readDeployRoot();
-      
-      // Get lecture list and build each lecture using terminal
-      const lectureDirs = await this.courseManager.getLectureDirectories();
-      
-      for (const lectureName of lectureDirs) {
-        outputChannel.appendLine(`[BUILD] Building lecture: ${lectureName} (deployRoot: ${deployRoot})`);
-        
-        // Use buildLecture with deployRoot mode for correct --base and copy destination
-        await this.buildLecture(lectureName, deployRoot);
-        
-        outputChannel.appendLine(`[BUILD] ✓ Lecture "${lectureName}" built successfully`);
-      }
-
-      outputChannel.appendLine('[BUILD] ✓ Course build completed successfully');
-    } finally {
-      await this.hideProgress();
-    }
-  }
+  // ============================================
+  // Index HTML update (FS operation)
+  // ============================================
 
   /**
-   * Updates index.html with lecture list from slides.json
+   * Updates index.html with lecture list from slides.json.
    * Finds <!-- Place to insert slide list --><div id="slide_list"></div>
-   * and replaces the content with a numbered list of lectures
-   * @returns Promise that resolves when update is complete
+   * and replaces the content with a numbered list of lectures.
    */
   async updateIndexHtml(): Promise<void> {
     try {
-      // Get course name for building paths
       const courseName = await this.courseManager.readCourseName();
       if (!courseName) {
         throw new Error('Course name not found in sliman.json');
       }
 
       // Determine output directory based on deployRoot mode
-      // - deployRoot: false → {courseName}/
-      // - deployRoot: true  → built/
       const deployRoot = await this.courseManager.readDeployRoot();
       const outputDir = deployRoot ? 'built' : courseName;
 
-      // Path to index.html: {courseRoot}/{outputDir}/index.html
       const courseRoot = this.courseManager.getCourseRoot();
       const indexHtmlPath = vscode.Uri.joinPath(courseRoot, outputDir, 'index.html');
 
@@ -355,12 +435,11 @@ export class BuildManager {
 
       // Find and replace the slide_list div content
       const placeholderPattern = /<!-- Place to insert slide list -->[\s\S]*?<div id="slide_list">[\s\S]*?<\/div>/;
-      
+
       if (placeholderPattern.test(indexHtmlContent)) {
         const replacement = `<!-- Place to insert slide list -->\n${lectureListHtml}`;
         indexHtmlContent = indexHtmlContent.replace(placeholderPattern, replacement);
       } else {
-        // If placeholder not found, try to find just the div
         const divPattern = /<div id="slide_list">[\s\S]*?<\/div>/;
         if (divPattern.test(indexHtmlContent)) {
           indexHtmlContent = indexHtmlContent.replace(divPattern, lectureListHtml);
@@ -378,25 +457,20 @@ export class BuildManager {
       } catch (error) {
         throw new Error(`Failed to write index.html: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
-
     } catch (error) {
-      // Log error but don't throw - preserve existing content
       console.error('Failed to update index.html:', error);
-      // Could also log to output channel if available
     }
   }
 
   /**
-   * Generates HTML for numbered list of lectures
-   * @param lectures - Array of lecture objects with name and title
-   * @returns HTML string with numbered list
+   * Generates HTML for numbered list of lectures.
    */
   private generateLectureListHtml(lectures: Array<{ name: string; title: string }>): string {
     if (!lectures || lectures.length === 0) {
       return '<div id="slide_list"><p>Лекции не найдены</p></div>';
     }
 
-    const listItems = lectures.map(lecture => {
+    const listItems = lectures.map((lecture) => {
       const safeTitle = this.escapeHtml(lecture.title);
       const safeName = this.escapeHtml(lecture.name);
       return `  <li><a href="./${safeName}">${safeTitle}</a></li>`;
@@ -410,9 +484,7 @@ ${listItems}
   }
 
   /**
-   * Escapes HTML characters to prevent XSS
-   * @param text - Text to escape
-   * @returns Escaped text
+   * Escapes HTML characters to prevent XSS.
    */
   private escapeHtml(text: string): string {
     return text

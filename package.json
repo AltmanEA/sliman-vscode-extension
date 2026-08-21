@@ -9,7 +9,7 @@
     "url": "https://github.com/AltmanEA/sliman-vscode-extension.git"
   },
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.90.0"
   },
   "categories": [
     "Other"
@@ -139,7 +139,7 @@
     "@eslint/js": "^9.0.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "18.18.0",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.90.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@vscode/test-cli": "^0.0.12",

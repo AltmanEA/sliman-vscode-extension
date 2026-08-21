@@ -8,7 +8,6 @@ import * as path from 'path';
 import * as fs from 'fs/promises';
 import { CourseManager } from '../../managers/CourseManager';
 import { LectureManager } from '../../managers/LectureManager';
-import type { BuildProgress } from '../../managers/BuildManager';
 import { BuildManager } from '../../managers/BuildManager';
 import { createTestDir, cleanupTestDir, cleanupAllTestDirs } from '../utils/testWorkspace';
 import { createMinimalCourse, createCourseStructure, createCourseWithEmptySlides } from '../utils/courseStructure';
@@ -56,72 +55,8 @@ suite('BuildManager Tests', () => {
     });
 
     test('dispose releases resources', async () => {
-      // Create a status bar item by showing progress
-      await buildManager.showProgress({ stage: 'building' });
-      
-      // Verify status bar item was created
-      assert.ok(true); // Status bar item creation is internal
-      
-      // Dispose
+      // Dispose should clean up terminals
       buildManager.dispose();
-      
-      // After dispose, status bar should be cleaned up
-      // The dispose method should handle cleanup internally
-    });
-  });
-
-  // Progress Display Tests
-  suite('Progress Display Tests', () => {
-    test('showProgress updates status bar', async () => {
-      const progress: BuildProgress = {
-        lecture: 'test-lecture',
-        stage: 'building',
-        percent: 50
-      };
-
-      await buildManager.showProgress(progress);
-      // showProgress creates and shows status bar item
-      // No direct assertion possible without accessing internal state
-      assert.ok(true);
-    });
-
-    test('showProgress handles lecture-specific progress', async () => {
-      const progress: BuildProgress = {
-        lecture: 'specific-lecture',
-        stage: 'installing',
-        percent: 25
-      };
-
-      await buildManager.showProgress(progress);
-      assert.ok(true);
-    });
-
-    test('showProgress handles course-level progress', async () => {
-      const progress: BuildProgress = {
-        stage: 'building',
-        percent: 75
-      };
-
-      await buildManager.showProgress(progress);
-      assert.ok(true);
-    });
-
-    test('hideProgress clears status bar', async () => {
-      // First show progress
-      await buildManager.showProgress({ stage: 'building' });
-      
-      // Then hide it
-      await buildManager.hideProgress();
-      
-      // hideProgress should clean up status bar
-      assert.ok(true);
-    });
-
-    test('hideProgress handles no status bar item', async () => {
-      // Hide without showing first
-      await buildManager.hideProgress();
-      
-      // Should not throw error
       assert.ok(true);
     });
   });
@@ -206,47 +141,11 @@ suite('BuildManager Tests', () => {
       // BuildManager should work with the created managers
       const newBuildManager = new BuildManager(courseManager, lectureManager);
       assert.ok(newBuildManager instanceof BuildManager);
-      
-      // Should be able to show progress (this doesn't involve real build operations)
-      await newBuildManager.showProgress({ stage: 'building', percent: 100 });
-      await newBuildManager.hideProgress();
-    });
-
-    test('Multiple progress operations work sequentially', async () => {
-      // Show progress multiple times (no real build operations)
-      await buildManager.showProgress({ stage: 'installing', percent: 25 });
-      await buildManager.showProgress({ stage: 'building', percent: 50 });
-      await buildManager.showProgress({ stage: 'complete', percent: 100 });
-      
-      // Hide progress
-      await buildManager.hideProgress();
-      
-      assert.ok(true);
     });
   });
 
   // Edge Cases Tests
   suite('Edge Cases Tests', () => {
-    test('showProgress handles undefined percent', async () => {
-      const progress: BuildProgress = {
-        stage: 'building'
-        // No percent provided
-      };
-
-      await buildManager.showProgress(progress);
-      assert.ok(true);
-    });
-
-    test('showProgress handles empty lecture name', async () => {
-      const progress: BuildProgress = {
-        lecture: '', // Empty lecture name
-        stage: 'building'
-      };
-
-      await buildManager.showProgress(progress);
-      assert.ok(true);
-    });
-
     test('dispose can be called multiple times', async () => {
       // First dispose
       buildManager.dispose();
@@ -272,6 +171,48 @@ suite('BuildManager Tests', () => {
       await assert.rejects(
         () => buildManager.buildLecture('nonexistent', true),
         /does not exist/
+      );
+    });
+
+    test('buildLecture error includes type: lecture-not-found', async () => {
+      let error: unknown;
+      try {
+        await buildManager.buildLecture('nonexistent');
+      } catch (e) {
+        error = e;
+      }
+
+      assert.ok(error instanceof Error);
+      assert.strictEqual((error as Error & { type: string }).type, 'lecture-not-found');
+      assert.strictEqual(
+        (error as Error & { lecture: string }).lecture,
+        'nonexistent'
+      );
+    });
+
+    test('buildLecture with deployRoot includes error type', async () => {
+      let errorWithFalse: unknown;
+      let errorWithTrue: unknown;
+
+      try {
+        await buildManager.buildLecture('nonexistent', false);
+      } catch (e) {
+        errorWithFalse = e;
+      }
+
+      try {
+        await buildManager.buildLecture('nonexistent', true);
+      } catch (e) {
+        errorWithTrue = e;
+      }
+
+      assert.strictEqual(
+        (errorWithFalse as Error & { type: string }).type,
+        'lecture-not-found'
+      );
+      assert.strictEqual(
+        (errorWithTrue as Error & { type: string }).type,
+        'lecture-not-found'
       );
     });
   });

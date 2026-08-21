@@ -710,7 +710,7 @@ export async function buildCourse(): Promise<void> {
   // Step 3: Build the course
   channel.appendLine('[BUILD] Building course...');
   try {
-    await buildManager.buildCourse(outputChannel);
+    await buildManager.buildCourse();
     channel.appendLine('[BUILD] ✓ Course build completed');
     void vscode.window.showInformationMessage('Course built successfully');
   } catch (error) {

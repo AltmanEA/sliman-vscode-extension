@@ -5,6 +5,14 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.0.0/),
 и этот проект придерживается [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.6] - 2026-08-21
+
+### Исправлено
+- **BuildManager**: переписана логика сборки курса — переход от Output Channel к VS Code Terminal для всех операций сборки. Ранее `buildCourse` использовал Output Channel без полной очистки кэша Vite и целевых директорий, что приводило к пропаданию иконок UnoCSS. Теперь обе функции сборки (`buildLecture` и `buildCourse`) используют единый terminal-based подход с гарантированной очисткой `node_modules/.vite`, `dist/` и выходных директорий перед каждой сборкой.
+- **tsconfig.json**: добавлен `"vscode"` в `compilerOptions.types` для корректной компиляции с типами VS Code API.
+- **package.json**: обновлён минимальный VS Code API до ^1.90.0.
+- **commands.ts**: устранён лишний аргумент `outputChannel` в вызове `buildManager.buildCourse()`.
+
 ## [0.0.5] - 2026-08-20
 
 ### Исправлено
